@@ -135,14 +135,14 @@
     // Kişi kimse sormadan herkese durum bildirdiyse ve bu, son cevaptan yeniyse onu göster
     if (d && (!s || (s.cevap && d.zaman > (s.cevap_zamani || 0)) || (!s.cevap && d.zaman > s.zaman))) {
       const t0 = simdi();
-      const soruArasi0 = (veri && veri.soruArasi) || 30 * 60 * 1000;
+      const soruArasi0 = 0 /* bekleme süresi yok */;
       const kilit0 = s ? Math.max(0, soruArasi0 - (t0 - s.zaman)) : 0;
       if (d.cevap === "yardim") return { sinif: "durum-yardim", metin: "Yardım istedi · " + once(t0 - d.zaman), kilit: kilit0 };
       if (d.cevap === "sonra") return { sinif: "durum-sonra", metin: "Müsait değil · " + once(t0 - d.zaman), kilit: kilit0 };
       return { sinif: "durum-iyi", metin: "Kendisi bildirdi: İyi · " + once(t0 - d.zaman), kilit: kilit0 };
     }
     const t = simdi();
-    const soruArasi = (veri && veri.soruArasi) || 30 * 60 * 1000;
+    const soruArasi = 0 /* bekleme süresi yok */;
     const kilit = s ? Math.max(0, soruArasi - (t - s.zaman)) : 0;
     if (!s) return { sinif: "", metin: "Henüz sormadın", kilit };
     if (s.cevap === "yardim") return { sinif: "durum-yardim", metin: "Yardım istedi · " + once(t - s.cevap_zamani), kilit };
@@ -160,7 +160,7 @@
     if (!kimlik) return;
     $("#selam").textContent = `Merhaba ${kimlik.ad}.`;
     const liste = (veri && veri.kisiler) || [];
-    $("#herkese").hidden = liste.length === 0;
+    $("#hizli").hidden = liste.length === 0;
 
     // gelen sorular
     const gelen = liste.filter((k) => k.bekleyenSoru);
@@ -194,7 +194,11 @@
               <span class="kisi-ad">${kacis(k.ad)}</span>
               <span class="kisi-durum">${kacis(d.metin)}</span>
             </button>
-            ${d.sinif === "durum-yardim" && k.sonSoru && k.sonSoru.konum ? `<a class="konum-link" href="https://www.google.com/maps/search/?api=1&query=${k.sonSoru.konum.lat},${k.sonSoru.konum.lng}">📍 Konumu gör</a>` : ""}
+            ${(() => {
+              if (d.sinif !== "durum-yardim") return "";
+              const kn = (k.sonDurum && k.sonDurum.cevap === "yardim" && k.sonDurum.konum) || (k.sonSoru && k.sonSoru.konum);
+              return kn ? `<a class="konum-link" href="https://www.google.com/maps/search/?api=1&query=${kn.lat},${kn.lng}">📍 Konumu gör</a>` : "";
+            })()}
           </div>
           ${sag}
         </div>`;
@@ -490,13 +494,13 @@
     if (!herkeseOnay) {
       herkeseOnay = true;
       b.classList.add("onay");
-      b.lastChild.textContent = " Gönderilsin mi? Tekrar dokun";
-      setTimeout(() => { herkeseOnay = false; b.classList.remove("onay"); b.lastChild.textContent = " Herkese “İyiyim” de"; }, 3500);
+      b.querySelector("span").textContent = "Emin misin? Tekrar dokun";
+      setTimeout(() => { herkeseOnay = false; b.classList.remove("onay"); b.querySelector("span").textContent = "Herkese “İyiyim” de"; }, 3500);
       return;
     }
     herkeseOnay = false;
     b.classList.remove("onay");
-    b.lastChild.textContent = " Herkese “İyiyim” de";
+    b.querySelector("span").textContent = "Herkese “İyiyim” de";
     b.disabled = true;
     try {
       const v = await istek("/herkese", { cevap: "iyi" });
@@ -507,6 +511,42 @@
       if (e.durum === 429 && e.veri && e.veri.kalan) tost(`Az önce bildirdin. ${kalanMetin(e.veri.kalan)} sonra tekrar gönderebilirsin`);
       else tost(e.message);
     } finally { b.disabled = false; }
+  });
+
+  // --- yardım iste: tüm yakınlara konumla birlikte ---
+  let yardimOnay = false;
+  $("#yardim-iste").addEventListener("click", async () => {
+    const b = $("#yardim-iste");
+    const yazi = b.querySelector("span");
+    if (!yardimOnay) {
+      yardimOnay = true;
+      b.classList.add("onay");
+      yazi.textContent = "Göndermek için tekrar dokun";
+      if ("vibrate" in navigator) navigator.vibrate(40);
+      setTimeout(() => { if (!yardimOnay) return; yardimOnay = false; b.classList.remove("onay"); yazi.textContent = "Yardım iste"; }, 4000);
+      return;
+    }
+    yardimOnay = false;
+    b.disabled = true;
+    yazi.textContent = "Konum alınıyor…";
+    let konum = null;
+    try {
+      const k = await Iyiyim.konumAl();
+      if (k && isFinite(k.lat) && isFinite(k.lng)) konum = k;
+    } catch (e) {}
+    yazi.textContent = "Gönderiliyor…";
+    try {
+      const v = await istek("/herkese", konum ? { cevap: "yardim", konum } : { cevap: "yardim" });
+      tost(konum ? `Yardım isteğin ve konumun ${v.kisi} kişiye gönderildi` : `Yardım isteğin ${v.kisi} kişiye gönderildi (konum alınamadı)`, 4500);
+      if ("vibrate" in navigator) navigator.vibrate([60, 60, 60]);
+      yenile();
+    } catch (e) {
+      tost(e.ag ? "İnternet yok. Bağlanınca tekrar dene ya da 112'yi ara." : e.message, 5000);
+    } finally {
+      b.disabled = false;
+      b.classList.remove("onay");
+      yazi.textContent = "Yardım iste";
+    }
   });
 
   // --- gizlilik ---

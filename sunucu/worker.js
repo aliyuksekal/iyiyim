@@ -4,7 +4,7 @@
 //   Gizli değişken:     FCM_HESAP  -> Firebase hizmet hesabı JSON dosyasının tamamı
 // Tablolar ilk istekte kendiliğinden kurulur.
 
-const SORU_ARASI_MS = 30 * 60 * 1000;      // aynı kişiye 30 dakikada bir soru
+const SORU_ARASI_MS = 0;                   // "İyi misin?" için bekleme süresi yok
 const DAVET_SURESI_MS = 24 * 60 * 60 * 1000; // davet kodu 24 saat geçerli
 const KOD_HARFLERI = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 const CEVAPLAR = ["iyi", "sonra", "yardim"];
@@ -22,6 +22,7 @@ const SEMA = [
 // Sonradan eklenen sütunlar (var olan veritabanlarında tek tek eklenir, varsa hata yutulur)
 const EK_SUTUNLAR = [
   "ALTER TABLE sorular ADD COLUMN konum TEXT",
+  "ALTER TABLE kullanicilar ADD COLUMN durum_konum TEXT",
 ];
 let semaHazir = false;
 
@@ -159,7 +160,7 @@ async function katil(env, ctx, ben, g) {
 
 async function kisiler(env, ben) {
   const liste = await env.DB.prepare(
-    "SELECT u.id, u.ad, u.durum, u.durum_zamani, p.olusma FROM baglar p JOIN kullanicilar u ON u.id = p.b WHERE p.a = ? ORDER BY p.olusma"
+    "SELECT u.id, u.ad, u.durum, u.durum_zamani, u.durum_konum, p.olusma FROM baglar p JOIN kullanicilar u ON u.id = p.b WHERE p.a = ? ORDER BY p.olusma"
   ).bind(ben.id).all();
   const sonuc = [];
   const alti = Date.now() - 6 * 60 * 60 * 1000;
@@ -177,7 +178,7 @@ async function kisiler(env, ben) {
       ad: k.ad,
       sonSoru: son,
       bekleyenSoru: (ondan.results && ondan.results[0]) || null,
-      sonDurum: k.durum ? { cevap: k.durum, zaman: k.durum_zamani } : null,
+      sonDurum: k.durum ? { cevap: k.durum, zaman: k.durum_zamani, konum: konumOku(k.durum_konum) } : null,
     });
   }
   return json({ ben: { id: ben.id, ad: ben.ad }, kisiler: sonuc, simdi: Date.now(), soruArasi: SORU_ARASI_MS });
@@ -189,7 +190,7 @@ async function sor(env, ben, g) {
   const son = await env.DB.prepare("SELECT zaman FROM sorular WHERE kimden = ? AND kime = ? ORDER BY zaman DESC LIMIT 1")
     .bind(ben.id, kime).first();
   const simdi = Date.now();
-  if (son && simdi - son.zaman < SORU_ARASI_MS) {
+  if (SORU_ARASI_MS > 0 && son && simdi - son.zaman < SORU_ARASI_MS) {
     return hata("Aynı kişiye 30 dakikada bir sorabilirsin", 429, { kalan: SORU_ARASI_MS - (simdi - son.zaman) });
   }
   const o = await env.DB.prepare("SELECT id, ad, token FROM kullanicilar WHERE id = ?").bind(kime).first();
@@ -207,15 +208,7 @@ async function cevap(env, ben, g) {
   if (!s) return hata("Soru bulunamadı", 404);
   const simdi = Date.now();
   // Konum yalnızca "Yardım lazım" ile ve kullanıcının telefonu verdiyse gelir
-  let konum = null;
-  if (c === "yardim" && g.konum && isFinite(g.konum.lat) && isFinite(g.konum.lng)) {
-    konum = {
-      lat: Math.round(Number(g.konum.lat) * 1e6) / 1e6,
-      lng: Math.round(Number(g.konum.lng) * 1e6) / 1e6,
-      hassas: isFinite(g.konum.hassas) ? Math.round(Number(g.konum.hassas)) : null,
-      zaman: isFinite(g.konum.zaman) ? Number(g.konum.zaman) : simdi,
-    };
-  }
+  const konum = c === "yardim" ? konumTemizle(g.konum, simdi) : null;
   await env.DB.prepare("UPDATE sorular SET cevap = ?, cevap_zamani = ?, konum = ? WHERE id = ?")
     .bind(c, simdi, konum ? JSON.stringify(konum) : null, s.id).run();
   const soran = await env.DB.prepare("SELECT id, ad, token FROM kullanicilar WHERE id = ?").bind(s.kimden).first();
@@ -229,23 +222,43 @@ async function herkese(env, ctx, ben, g) {
   const c = String(g.cevap || "iyi");
   if (!CEVAPLAR.includes(c)) return hata("Geçersiz durum");
   const simdi = Date.now();
-  if (ben.durum_zamani && simdi - ben.durum_zamani < HERKESE_ARASI_MS) {
+  // Yardım isteği acil durumdur: hiçbir zaman bekletilmez
+  if (c !== "yardim" && ben.durum !== "yardim" && ben.durum_zamani && simdi - ben.durum_zamani < HERKESE_ARASI_MS) {
     return hata("Herkese 10 dakikada bir bildirebilirsin", 429, { kalan: HERKESE_ARASI_MS - (simdi - ben.durum_zamani) });
   }
   const alti = simdi - 6 * 60 * 60 * 1000;
+  const konum = c === "yardim" ? konumTemizle(g.konum, simdi) : null;
+  // Konum alınamadıysa son bilinen yardım konumunu koru
+  const konumMetni = konum ? JSON.stringify(konum) : (c === "yardim" ? ben.durum_konum || null : null);
   await env.DB.batch([
-    env.DB.prepare("UPDATE kullanicilar SET durum = ?, durum_zamani = ? WHERE id = ?").bind(c, simdi, ben.id),
+    env.DB.prepare("UPDATE kullanicilar SET durum = ?, durum_zamani = ?, durum_konum = ? WHERE id = ?").bind(c, simdi, konumMetni, ben.id),
     // Bana sorulmuş ve henüz cevaplamadığım sorular da bu durumla cevaplanmış sayılır
-    env.DB.prepare("UPDATE sorular SET cevap = ?, cevap_zamani = ? WHERE kime = ? AND cevap IS NULL AND zaman > ?").bind(c, simdi, ben.id, alti),
+    env.DB.prepare("UPDATE sorular SET cevap = ?, cevap_zamani = ?, konum = ? WHERE kime = ? AND cevap IS NULL AND zaman > ?").bind(c, simdi, konumMetni, ben.id, alti),
   ]);
   const liste = await env.DB.prepare(
     "SELECT u.id, u.ad, u.token FROM baglar p JOIN kullanicilar u ON u.id = p.b WHERE p.a = ?"
   ).bind(ben.id).all();
   const kisiler = liste.results || [];
   const sonuclar = await Promise.all(kisiler.map((k) =>
-    bildirimGonder(env, k, { tip: "durum", kimden: ben.id, ad: ben.ad, cevap: c, zaman: String(simdi) }, 86400)
+    bildirimGonder(env, k, Object.assign(
+      { tip: "durum", kimden: ben.id, ad: ben.ad, cevap: c, zaman: String(simdi) },
+      konum ? { lat: konum.lat, lng: konum.lng, hassas: konum.hassas == null ? "" : konum.hassas, konumYeni: "1" } : {}
+    ), 86400)
   ));
   return json({ tamam: true, kisi: kisiler.length, ulasan: sonuclar.filter(Boolean).length });
+}
+
+function konumTemizle(k, simdi) {
+  if (!k || !isFinite(k.lat) || !isFinite(k.lng)) return null;
+  return {
+    lat: Math.round(Number(k.lat) * 1e6) / 1e6,
+    lng: Math.round(Number(k.lng) * 1e6) / 1e6,
+    hassas: isFinite(k.hassas) && k.hassas !== null ? Math.round(Number(k.hassas)) : null,
+    zaman: isFinite(k.zaman) ? Number(k.zaman) : simdi,
+  };
+}
+function konumOku(metin) {
+  try { return metin ? JSON.parse(metin) : null; } catch (e) { return null; }
 }
 
 async function temizlik(env) {

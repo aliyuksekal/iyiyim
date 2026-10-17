@@ -286,6 +286,8 @@ public final class Ortak {
     }
 
     static synchronized void alarmKur(Context c, String soruId, String kisiId, String ad, long zaman) {
+        // Aynı kişiye yeniden sorulduysa eski sorunun alarmı yerine yenisi geçer
+        if (kisiId != null && !kisiId.isEmpty()) kisininAlarmlariniIptal(c, kisiId);
         try {
             JSONObject liste = bekleyenAlarmlar(c);
             JSONObject a = new JSONObject();

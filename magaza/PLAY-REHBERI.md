@@ -47,7 +47,7 @@ NASIL ÇALIŞIR
 • Operatör gerekmez: SMS ya da hat kullanmaz. İnternet olan her yerde, Wi-Fi'da bile çalışır.
 • İnternet yoksa bekletir: Verdiğin cevap internet gelince kendiliğinden gönderilir.
 • Yaşlılar için kolay: Kocaman düğmeler, sade ekran.
-• Rahatsız etmez: Aynı kişiye en fazla 30 dakikada bir sorulabilir.
+• Yardım iste: Kimse sormadan, tek dokunuşla tüm yakınlarına yardım isteğini ve konumunu gönder.
 • Koyu ve açık görünüm.
 
 GİZLİLİĞİNE SAYGILI

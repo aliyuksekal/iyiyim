@@ -64,7 +64,9 @@ public class MesajServisi extends FirebaseMessagingService {
                 String durum = deger(v, "cevap");
                 if (!"yardim".equals(durum)) Ortak.kisininAlarmlariniIptal(this, kimden);
                 if ("yardim".equals(durum)) {
-                    Ortak.alarmCal(this, "d" + kimden, kimden, ad, System.currentTimeMillis(), true);
+                    Ortak.kisininAlarmlariniIptal(this, kimden);
+                    Ortak.alarmCal(this, "d" + kimden, kimden, ad, System.currentTimeMillis(), true,
+                            sayi(deger(v, "lat")), sayi(deger(v, "lng")), deger(v, "hassas"));
                 } else {
                     String baslik = "sonra".equals(durum) ? ad + " müsait değil" : ad + " iyi olduğunu bildirdi 💚";
                     String metin = "sonra".equals(durum) ? "Sonra arayacağını herkese bildirdi" : "Kimse sormadan herkese “İyiyim” dedi";

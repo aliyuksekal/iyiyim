@@ -70,11 +70,15 @@
       </button>
     </header>
 
-    <div class="selam-satir">
-      <p class="selam" id="selam"></p>
-      <button class="herkese" id="herkese" hidden>
+    <p class="selam" id="selam"></p>
+    <div class="hizli" id="hizli" hidden>
+      <button class="hizli-dugme iyi" id="herkese">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
-        Herkese “İyiyim” de
+        <span>Herkese “İyiyim” de</span>
+      </button>
+      <button class="hizli-dugme yardim" id="yardim-iste">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 10v4.5M12 17.5v.01"/></svg>
+        <span>Yardım iste</span>
       </button>
     </div>
     <div id="baglanti-uyari" class="uyari-serit" hidden></div>
@@ -232,7 +236,7 @@
     <ul class="gizlilik-liste">
       <li><b>Sunucuda tutulan:</b> adın, rastgele bir hesap kimliği, bildirim jetonu, kimleri eklediğin, sorular ve cevaplar.</li>
       <li><b>Sadece telefonunda kalan:</b> kişilere yazdığın telefon numaraları.</li>
-      <li><b>Konum:</b> sadece “Yardım lazım” dediğin an bir kez alınır ve yalnızca sana soran kişiye gider. Arka planda takip yok.</li>
+      <li><b>Konum:</b> sadece “Yardım lazım” ya da “Yardım iste” dediğin an bir kez alınır ve yalnızca eşleştiğin kişilere gider. Arka planda takip yok.</li>
       <li><b>Hiç almadığımız:</b> rehber, telefon numaran, e-postan, mesajların. Reklam ve analiz aracı yok.</li>
       <li>Soru ve cevaplar <b>30 gün</b> sonra kendiliğinden silinir.</li>
       <li>Ayarlar → Gelişmiş → <b>Hesabımı sil</b> her şeyi anında siler.</li>
