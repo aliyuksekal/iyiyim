@@ -1,4 +1,4 @@
-// İyiyim sunucusu — Cloudflare Worker + D1 + Firebase Cloud Messaging (v1)
+// İyiyim sunucusu — Cloudflare Worker + D1 + Firebase Cloud Messaging (v1). GitHub Actions ile otomatik yayınlanır.
 // Gerekenler (Cloudflare panelinden):
 //   D1 bağlantısı adı:  DB
 //   Gizli değişken:     FCM_HESAP  -> Firebase hizmet hesabı JSON dosyasının tamamı
