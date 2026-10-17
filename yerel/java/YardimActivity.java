@@ -54,6 +54,7 @@ public class YardimActivity extends Activity {
                 int kod = (Integer) r[0];
                 if (kod >= 200 && kod < 300) {
                     int kisi = new JSONObject((String) r[1]).optInt("kisi", 0);
+                    IyiyimWidget.olayEkle(c, "ben", "Sen", "ben_yardim", System.currentTimeMillis());
                     mesaj = (konum != null ? "Yardım isteğin ve konumun " : "Yardım isteğin ") + kisi + " kişiye gitti · " + IyiyimWidget.saat();
                 } else if (kod == -1) {
                     mesaj = "İnternet yok! Bağlanınca tekrar dene ya da 112'yi ara";

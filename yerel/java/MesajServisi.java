@@ -39,6 +39,13 @@ public class MesajServisi extends FirebaseMessagingService {
             for (Map.Entry<String, String> e : v.entrySet()) olay.put(e.getKey(), e.getValue());
         } catch (Exception ignored) {}
 
+        // Widget'ın kayan satırı için yakınların son haberi
+        String widgetTur = null;
+        if ("durum".equals(tip) || "cevap".equals(tip)) widgetTur = deger(v, "cevap");
+        if (widgetTur != null && !widgetTur.isEmpty()) {
+            IyiyimWidget.olayEkle(this, kimden, ad, widgetTur, System.currentTimeMillis());
+        }
+
         switch (tip) {
             case "soru":
                 Ortak.soruGoster(this, soruId, ad, null);

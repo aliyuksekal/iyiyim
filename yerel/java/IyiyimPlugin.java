@@ -316,6 +316,16 @@ public class IyiyimPlugin extends Plugin {
     }
 
     /** Ana ekrana İyiyim düğmesini (widget) eklemeyi önerir; destekleyen telefonlarda tek dokunuşla eklenir. */
+    /** Uygulama açıkken sunucudan gelen güncel durumları widget'a aktarır. */
+    @PluginMethod
+    public void widgetOlaylari(PluginCall call) {
+        try {
+            com.getcapacitor.JSArray l = call.getArray("liste");
+            IyiyimWidget.olaylariYaz(getContext(), l == null ? new org.json.JSONArray() : l);
+        } catch (Exception ignored) {}
+        call.resolve();
+    }
+
     @PluginMethod
     public void widgetEkle(PluginCall call) {
         JSObject r = new JSObject();

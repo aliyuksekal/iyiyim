@@ -27,6 +27,7 @@
       cihaz: async () => ({ marka: "Xiaomi", model: "Redmi Note 12", sdk: 34, surum: "14" }),
       tamEkranAyari: async () => ({}),
       widgetEkle: async () => ({ destek: false }),
+      widgetOlaylari: async () => ({}),
       konumIzni: async () => ({ durum: "granted" }),
       konumAl: async () => ({ lat: 41.0082, lng: 28.9784, hassas: 15, zaman: Date.now() }),
       tonSec: async (o) => ({ ton: o.ton }),
@@ -216,6 +217,7 @@
       $("#baglanti-uyari").hidden = true;
       alarmlariEsitle();
       ciz();
+      widgetGuncelle(v);
       // Bildirim kaçmış olsa bile, uygulama açıkken bekleyen soruyu tam ekran göster
       const bekleyen = (v.kisiler || []).filter((k) => k.bekleyenSoru && !gosterilenSorular.has(k.bekleyenSoru.id))
         .sort((p, q) => q.bekleyenSoru.zaman - p.bekleyenSoru.zaman)[0];
@@ -232,6 +234,20 @@
     } finally {
       yenileniyor = false;
     }
+  }
+
+  // Ana ekran widget'ının kayan satırı: her yakının en son haberi
+  function widgetGuncelle(v) {
+    const liste = [];
+    for (const k of v.kisiler || []) {
+      const adaylar = [];
+      if (k.sonDurum && k.sonDurum.cevap) adaylar.push({ tur: k.sonDurum.cevap, zaman: k.sonDurum.zaman });
+      if (k.sonSoru && k.sonSoru.cevap) adaylar.push({ tur: k.sonSoru.cevap, zaman: k.sonSoru.cevap_zamani });
+      if (!adaylar.length) continue;
+      adaylar.sort((p, q) => q.zaman - p.zaman);
+      liste.push({ id: k.id, ad: k.ad, tur: adaylar[0].tur, zaman: adaylar[0].zaman - saatFarki });
+    }
+    Iyiyim.widgetOlaylari({ liste }).catch(() => {});
   }
 
   // Cevaplanmış sorulara ait alarmları iptal et (yerel taraf zaten iptal eder, bu ikinci emniyet)

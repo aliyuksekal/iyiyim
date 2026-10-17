@@ -72,15 +72,24 @@
         </LinearLayout>
     </LinearLayout>
 
+    <ViewFlipper
+        android:id="@+id/w_akis"
+        android:layout_width="match_parent"
+        android:layout_height="46dp"
+        android:layout_marginTop="6dp"
+        android:autoStart="true"
+        android:flipInterval="5000"
+        android:inAnimation="@anim/akis_gir"
+        android:outAnimation="@anim/akis_cik" />
+
     <TextView
         android:id="@+id/w_durum"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
         android:gravity="center"
         android:maxLines="1"
         android:ellipsize="end"
-        android:text="İyiyim · tek dokunuşla haber ver"
+        android:visibility="gone"
         android:textColor="@color/widget_soluk"
         android:textSize="13sp" />
 </LinearLayout>
