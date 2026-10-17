@@ -28,6 +28,8 @@ public class CevapIsci extends Worker {
             JSONObject g = new JSONObject();
             g.put("soruId", soruId);
             g.put("cevap", cevap);
+            String konum = getInputData().getString("konum");
+            if (konum != null && !konum.isEmpty()) g.put("konum", new JSONObject(konum));
             Object[] r = Ortak.istek(c, "POST", "/cevap", g);
             int kod = (Integer) r[0];
             if (kod >= 200 && kod < 300) {

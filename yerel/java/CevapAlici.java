@@ -23,6 +23,8 @@ public class CevapAlici extends BroadcastReceiver {
         if (!eylem.startsWith("com.matali.iyiyim.CEVAP.")) return;
 
         final String cevap = intent.getStringExtra("cevap");
+        final String konumMetni = intent.getStringExtra("konum");
+        UstPencere.kaldir(c, soruId);
         final String ad = intent.getStringExtra("ad") != null ? intent.getStringExtra("ad") : "";
         Ortak.kanallariKur(c);
         Ortak.kapat(c, Ortak.noSoru(soruId));
@@ -34,10 +36,12 @@ public class CevapAlici extends BroadcastReceiver {
                 JSONObject g = new JSONObject();
                 g.put("soruId", soruId);
                 g.put("cevap", cevap);
+                if (konumMetni != null && !konumMetni.isEmpty()) g.put("konum", new JSONObject(konumMetni));
                 Object[] r = Ortak.istek(c, "POST", "/cevap", g);
                 int kod = (Integer) r[0];
                 if (kod >= 200 && kod < 300) {
-                    String metin = "yardim".equals(cevap) ? "Yardım isteğin " + ad + " kişisine iletildi"
+                    String metin = "yardim".equals(cevap)
+                            ? "Yardım isteğin " + (konumMetni != null && !konumMetni.isEmpty() ? "ve konumun " : "") + ad + " kişisine iletildi"
                             : "sonra".equals(cevap) ? "“Sonra ararım” " + ad + " kişisine iletildi"
                             : "“İyiyim” " + ad + " kişisine iletildi";
                     Ortak.durumGoster(c, Ortak.noSoru(soruId), "Gönderildi ✓", metin, 6000);
@@ -50,17 +54,25 @@ public class CevapAlici extends BroadcastReceiver {
                     Ortak.durumGoster(c, Ortak.noSoru(soruId), "Bu soru artık geçerli değil", ad + " seni listesinden çıkarmış olabilir", 10000);
                 } else {
                     // İnternet yok ya da sunucuya ulaşılamadı: bağlantı gelince kendiliğinden gönder
-                    Ortak.cevapSirala(c, soruId, cevap, ad);
+                    Ortak.cevapSirala(c, soruId, cevap, ad, konumOku(konumMetni));
                     Ortak.durumGoster(c, Ortak.noSoru(soruId), "İnternet bekleniyor",
                             "Cevabın internete bağlanınca otomatik gönderilecek", 0);
                 }
             } catch (Exception e) {
-                Ortak.cevapSirala(c, soruId, cevap, ad);
+                Ortak.cevapSirala(c, soruId, cevap, ad, konumOku(konumMetni));
                 Ortak.durumGoster(c, Ortak.noSoru(soruId), "İnternet bekleniyor",
                         "Cevabın internete bağlanınca otomatik gönderilecek", 0);
             } finally {
                 sonuc.finish();
             }
         }).start();
+    }
+
+    private static JSONObject konumOku(String metin) {
+        try {
+            return metin == null || metin.isEmpty() ? null : new JSONObject(metin);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

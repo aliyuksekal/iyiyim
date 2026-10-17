@@ -4,6 +4,17 @@ Bu klasördeki her şey Play Console'a yüklenmeye hazır. Aşağıdaki cevaplar
 
 ---
 
+## 0. Fiyatlandırma
+- **Uygulama fiyatı:** Ücretli uygulama, **99,99 ₺** (Play Console → Para kazanma → Uygulama fiyatlandırması). ⚠️ Bir uygulama ücretsiz yayınlanırsa sonradan ücretliye çevrilemez; ilk yayından önce ücretli olarak ayarla. Ücretli uygulama için Play Console'da **ödeme profili** (Merchant) açılmış olmalı.
+- **Geliştiriciyi destekle:** Play Console → Para kazanma → Ürünler → **Uygulama içi ürünler** → Ürün oluştur
+  - Ürün kimliği: `destek_149` (birebir böyle)
+  - Ad: Geliştiriciyi destekle
+  - Açıklama: İyiyim'in gelişmesine ve sunucuların açık kalmasına katkı
+  - Fiyat: **149,99 TRY**
+  - Durum: **Etkin**
+  - Ürün tüketilebilir olarak kullanılır, aynı kişi isterse tekrar destek olabilir.
+  - Not: Uygulama içi ürünler, uygulamanın ilk sürümü (AAB) en az bir test kanalına yüklendikten sonra oluşturulabilir.
+
 ## 1. Mağaza girişi (Ana mağaza girişi)
 
 **Uygulama adı** (24/30)
@@ -29,7 +40,10 @@ NASIL ÇALIŞIR
 • Alarm: Cevap gelmezse (15 dakika ile 3 saat arası, sen seçersin) telefonun alarm sesiyle uyarır. “Yardım lazım” denirse hiç beklemeden çalar.
 
 ÖNE ÇIKANLAR
+• Yardım lazım: Tek dokunuşla yardım iste; o anki konumun soran kişiye gider, haritada açar.
 • Herkese “İyiyim” de: Kimse sormadan tüm yakınlarına tek dokunuşla iyi olduğunu bildir.
+• Kilit ekranında bile açılır: Soru, telefon kilitliyken ya da başka bir uygulamadayken ekranı kaplar.
+• Yüksek sesli tonlar: 5 farklı ton arasından seç, telefon sessizde olsa bile duy.
 • Operatör gerekmez: SMS ya da hat kullanmaz. İnternet olan her yerde, Wi-Fi'da bile çalışır.
 • İnternet yoksa bekletir: Verdiğin cevap internet gelince kendiliğinden gönderilir.
 • Yaşlılar için kolay: Kocaman düğmeler, sade ekran.
@@ -37,7 +51,7 @@ NASIL ÇALIŞIR
 • Koyu ve açık görünüm.
 
 GİZLİLİĞİNE SAYGILI
-• Telefon numaranı, e-postanı, konumunu ya da rehberini istemez.
+• Telefon numaranı, e-postanı ya da rehberini istemez. Konumun sadece “Yardım lazım” dediğinde gider.
 • Reklam yok, analiz aracı yok.
 • Soru ve cevaplar 30 gün sonra kendiliğinden silinir.
 • Hesabını uygulamadan tek dokunuşla silebilirsin.
@@ -75,8 +89,8 @@ Giriş gerekmez. Açılışta bir ad yazmak yeterli. Soru-cevap özelliğini den
 - Kategori: Yardımcı program / Araç
 - Şiddet, cinsellik, kumar, uyuşturucu, küfür: Hayır
 - Kullanıcılar birbiriyle etkileşime giriyor mu: **Evet.** Yalnızca eşleştikleri kişilerle hazır cevaplar (“İyiyim / Sonra ararım / Yardım lazım”) paylaşılıyor. Serbest metin ya da medya yok.
-- Konum paylaşımı: Hayır
-- Dijital satın alma: Hayır
+- Konum paylaşımı: **Evet**, yalnızca kullanıcı “Yardım lazım” dediğinde ve sadece eşleştiği kişiyle
+- Dijital satın alma: **Evet** (isteğe bağlı “Geliştiriciyi destekle”)
 
 **Hedef kitle:** 18 ve üzeri (en sade politika yolu). İstersen 13+ seçebilirsin. 13 yaş altını seçme, aile politikaları devreye girer.
 
@@ -103,8 +117,10 @@ Toplanan veri türleri, hepsi için: *Toplanıyor · Paylaşılmıyor · Geçici
 | Mesajlar | **Diğer uygulama içi mesajlar** | “İyiyim / Sonra ararım / Yardım lazım” cevapları ve zamanları |
 | Uygulama etkinliği | **Diğer kullanıcı işlemleri** | Kimlerle eşleşildiği, kime ne zaman soru sorulduğu |
 | Cihaz veya diğer kimlikler | **Cihaz veya diğer kimlikler** | Firebase bildirim jetonu, rastgele hesap kimliği |
+| Konum | **Yaklaşık konum** ve **Hassas konum** | Yalnızca “Yardım lazım” anında tek seferlik; soruyu soran kişiye iletilir. İsteğe bağlı (izin verilmezse yardım isteği konumsuz gider) |
+| Finansal bilgiler | **Satın alma geçmişi** | Google Play yönetir; bize yalnızca başarılı/başarısız bilgisi gelir |
 
-**Toplanmayanlar:** Konum, kişiler/rehber, telefon numarası, e-posta, fotoğraf, ses, finans, sağlık, tarama geçmişi.
+**Toplanmayanlar:** Arka plan konumu, kişiler/rehber, telefon numarası, e-posta, fotoğraf, ses, finans, sağlık, tarama geçmişi.
 Kişilere kaydedilen telefon numaraları **cihazdan çıkmaz**, bu yüzden “toplanan” sayılmaz.
 
 ## 5. İzinler (Play'in sorabileceği)
@@ -114,8 +130,12 @@ Kişilere kaydedilen telefon numaraları **cihazdan çıkmaz**, bu yüzden “to
 | SCHEDULE_EXACT_ALARM | Cevap gelmezse alarmı tam zamanında çalmak (kullanıcı ayarlardan açar; kapalıysa yaklaşık zamanda çalar) |
 | RECEIVE_BOOT_COMPLETED | Telefon yeniden başlayınca bekleyen alarmları geri kurmak |
 | VIBRATE, WAKE_LOCK, INTERNET | Alarm titreşimi ve sunucuyla iletişim |
+| SYSTEM_ALERT_WINDOW | Gelen soruyu o an açık olan uygulamanın üstünde göstermek (kullanıcı ayarlardan açar) |
+| USE_FULL_SCREEN_INTENT | Telefon kilitliyken soru/alarm ekranını açmak. **Play Console'da beyan ister:** Uygulama içeriği → Tam ekran amaçlı bildirim → "Alarm" ya da "diğer" seçip şu açıklamayı yaz: *Yakınının "İyi misin?" sorusu ve cevap gelmediğinde çalan güvenlik alarmı, kilit ekranında tam ekran gösterilir.* Google onaylamazsa izin varsayılan kapalı gelir; kullanıcı Ayarlar'daki "Kilit ekranında açılsın" satırından açabilir. |
+| ACCESS_FINE / COARSE_LOCATION | Yalnızca "Yardım lazım" anında, ekran açıkken tek seferlik konum. **Arka plan konumu (ACCESS_BACKGROUND_LOCATION) yok**, ek beyan gerekmez. |
+| BILLING | Google Play üzerinden isteğe bağlı destek ödemesi |
 
-`USE_EXACT_ALARM`, `USE_FULL_SCREEN_INTENT`, ön plan hizmeti ve SMS/arama izni **kullanılmıyor**, bu yüzden ek beyan gerekmez.
+`USE_EXACT_ALARM`, ön plan hizmeti, arka plan konumu ve SMS/arama izni **kullanılmıyor**.
 
 ## 6. Yayın sırası
 1. **Kapalı test şartı:** Kişisel geliştirici hesapların çoğu için Play, üretime çıkmadan önce **en az 12 test kullanıcısıyla 14 gün kesintisiz kapalı test** istiyor. Yakınlarına İyiyim'i kurdurmak bu şartı doğal yoldan karşılar.

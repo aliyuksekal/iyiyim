@@ -19,6 +19,10 @@ const SEMA = [
   `CREATE INDEX IF NOT EXISTS sorular_cift ON sorular (kimden, kime, zaman)`,
   `CREATE INDEX IF NOT EXISTS sorular_kime ON sorular (kime, zaman)`,
 ];
+// Sonradan eklenen sütunlar (var olan veritabanlarında tek tek eklenir, varsa hata yutulur)
+const EK_SUTUNLAR = [
+  "ALTER TABLE sorular ADD COLUMN konum TEXT",
+];
 let semaHazir = false;
 
 const CORS = {
@@ -42,6 +46,9 @@ export default {
     try {
       if (!semaHazir) {
         await env.DB.batch(SEMA.map((s) => env.DB.prepare(s)));
+        for (const a of EK_SUTUNLAR) {
+          try { await env.DB.prepare(a).run(); } catch (e) { /* sütun zaten var */ }
+        }
         semaHazir = true;
       }
       const yol = new URL(istek.url).pathname.replace(/\/+$/, "") || "/";
@@ -158,13 +165,17 @@ async function kisiler(env, ben) {
   const alti = Date.now() - 6 * 60 * 60 * 1000;
   for (const k of liste.results || []) {
     const [benden, ondan] = await env.DB.batch([
-      env.DB.prepare("SELECT id, zaman, cevap, cevap_zamani FROM sorular WHERE kimden = ? AND kime = ? ORDER BY zaman DESC LIMIT 1").bind(ben.id, k.id),
+      env.DB.prepare("SELECT id, zaman, cevap, cevap_zamani, konum FROM sorular WHERE kimden = ? AND kime = ? ORDER BY zaman DESC LIMIT 1").bind(ben.id, k.id),
       env.DB.prepare("SELECT id, zaman FROM sorular WHERE kimden = ? AND kime = ? AND cevap IS NULL AND zaman > ? ORDER BY zaman DESC LIMIT 1").bind(k.id, ben.id, alti),
     ]);
+    const son = (benden.results && benden.results[0]) || null;
+    if (son) {
+      try { son.konum = son.konum ? JSON.parse(son.konum) : null; } catch (e) { son.konum = null; }
+    }
     sonuc.push({
       id: k.id,
       ad: k.ad,
-      sonSoru: (benden.results && benden.results[0]) || null,
+      sonSoru: son,
       bekleyenSoru: (ondan.results && ondan.results[0]) || null,
       sonDurum: k.durum ? { cevap: k.durum, zaman: k.durum_zamani } : null,
     });
@@ -195,9 +206,22 @@ async function cevap(env, ben, g) {
   const s = await env.DB.prepare("SELECT * FROM sorular WHERE id = ? AND kime = ?").bind(String(g.soruId || ""), ben.id).first();
   if (!s) return hata("Soru bulunamadı", 404);
   const simdi = Date.now();
-  await env.DB.prepare("UPDATE sorular SET cevap = ?, cevap_zamani = ? WHERE id = ?").bind(c, simdi, s.id).run();
+  // Konum yalnızca "Yardım lazım" ile ve kullanıcının telefonu verdiyse gelir
+  let konum = null;
+  if (c === "yardim" && g.konum && isFinite(g.konum.lat) && isFinite(g.konum.lng)) {
+    konum = {
+      lat: Math.round(Number(g.konum.lat) * 1e6) / 1e6,
+      lng: Math.round(Number(g.konum.lng) * 1e6) / 1e6,
+      hassas: isFinite(g.konum.hassas) ? Math.round(Number(g.konum.hassas)) : null,
+      zaman: isFinite(g.konum.zaman) ? Number(g.konum.zaman) : simdi,
+    };
+  }
+  await env.DB.prepare("UPDATE sorular SET cevap = ?, cevap_zamani = ?, konum = ? WHERE id = ?")
+    .bind(c, simdi, konum ? JSON.stringify(konum) : null, s.id).run();
   const soran = await env.DB.prepare("SELECT id, ad, token FROM kullanicilar WHERE id = ?").bind(s.kimden).first();
-  const ulasti = await bildirimGonder(env, soran, { tip: "cevap", soruId: s.id, kimden: ben.id, ad: ben.ad, cevap: c }, 86400);
+  const veri = { tip: "cevap", soruId: s.id, kimden: ben.id, ad: ben.ad, cevap: c };
+  if (konum) Object.assign(veri, { lat: konum.lat, lng: konum.lng, hassas: konum.hassas == null ? "" : konum.hassas });
+  const ulasti = await bildirimGonder(env, soran, veri, 86400);
   return json({ tamam: true, ulasti });
 }
 

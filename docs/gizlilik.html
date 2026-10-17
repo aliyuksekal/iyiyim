@@ -10,7 +10,7 @@
 <main>
 <p class="ust"><a href="./">İyiyim</a> · matali</p>
 <h1>Gizlilik Beyanı</h1>
-<p class="tarih">Yürürlük tarihi: 17 Ekim 2026</p>
+<p class="tarih">Yürürlük tarihi: 17 Ekim 2026 (konum ve ödeme bölümleri eklendi)</p>
 
 <p>İyiyim, yakınlarınıza “İyi misin?” diye sormanızı ve onların tek dokunuşla cevap vermesini sağlayan bir uygulamadır. Uygulamayı geliştiren <b>matali</b>, işin gerektirdiğinden fazla veri toplamaz. Bu sayfa hangi bilgileri neden kullandığımızı anlatır.</p>
 
@@ -22,20 +22,26 @@
 <tr><td>Bildirim jetonu (Firebase)</td><td>Size soru ve cevapları bildirim olarak ulaştırmak için</td><td>Sunucu</td></tr>
 <tr><td>Kimleri eklediğiniz</td><td>Yalnızca eşleştiğiniz kişilerle soru-cevap yapılabilsin diye</td><td>Sunucu</td></tr>
 <tr><td>Sorular, cevaplar ve zamanları</td><td>Son durumu göstermek ve cevap gelmezse alarm kurmak için</td><td>Sunucu (30 gün)</td></tr>
+<tr><td>Anlık konumunuz (yalnızca “Yardım lazım” dediğinizde)</td><td>Yardım isteğinizle birlikte, size soruyu soran kişinin sizi bulabilmesi için</td><td>Sunucu (30 gün), yalnızca o kişiye iletilir</td></tr>
 <tr><td>Kişilere kaydettiğiniz telefon numaraları</td><td>Alarm çaldığında tek dokunuşla arayabilmeniz için</td><td>Yalnızca telefonunuz</td></tr>
 </table>
 
 <h2>Toplamadıklarımız</h2>
 <ul>
-<li>Konumunuzu, rehberinizi, fotoğraflarınızı ya da mesajlarınızı <b>okumayız</b>.</li>
+<li>Konumunuzu <b>sürekli ya da arka planda takip etmeyiz</b>. Konum yalnızca siz “Yardım lazım” düğmesine bastığınız an, bir kez alınır ve sadece size soruyu soran kişiye gönderilir.</li>
+<li>Rehberinizi, fotoğraflarınızı ya da mesajlarınızı <b>okumayız</b>.</li>
 <li>Telefon numaranızı ya da e-posta adresinizi <b>istemeyiz</b>.</li>
 <li>Reklam ve analiz aracı <b>kullanmayız</b>, verilerinizi <b>satmayız</b>, reklam amacıyla paylaşmayız.</li>
 </ul>
+
+<h2>Ödemeler</h2>
+<p>Uygulamanın satın alınması ve isteğe bağlı “Geliştiriciyi destekle” ödemesi tamamen Google Play üzerinden yapılır. Kart ya da ödeme bilgileriniz bize ulaşmaz.</p>
 
 <h2>Hizmet sağlayıcılar</h2>
 <p>Uygulamanın çalışması için iki altyapı hizmeti kullanılır. Bilgileriniz yalnızca bu iş için onlara iletilir:</p>
 <ul>
 <li><b>Google Firebase Cloud Messaging:</b> bildirimleri telefonunuza ulaştırır.</li>
+<li><b>Google Play Hizmetleri:</b> “Yardım lazım” anında konumu cihazınızda belirler; Google Play ödemeleri yürütür.</li>
 <li><b>Cloudflare (Workers ve D1):</b> uygulamanın sunucusunu ve veritabanını barındırır.</li>
 </ul>
 <p>Telefon ile sunucu arasındaki tüm iletişim HTTPS ile şifrelenir.</p>

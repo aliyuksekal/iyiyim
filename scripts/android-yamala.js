@@ -57,6 +57,9 @@ const izinler = [
   "android.permission.VIBRATE",
   "android.permission.WAKE_LOCK",
   "android.permission.SYSTEM_ALERT_WINDOW",
+  "android.permission.USE_FULL_SCREEN_INTENT",
+  "android.permission.ACCESS_FINE_LOCATION",
+  "android.permission.ACCESS_COARSE_LOCATION",
 ];
 const eklenecekIzin = izinler
   .filter((i) => !m.includes(`"${i}"`))
@@ -90,7 +93,7 @@ const bilesenler = `
             </intent-filter>
         </receiver>
         <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_iyiyim" />
-        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="soru_v2" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="soru_zil_v3" />
 `;
 if (!m.includes(".MesajServisi")) m = m.replace(/<\/application>/, bilesenler + "    </application>");
 fs.writeFileSync(MANIFEST, m);
@@ -109,6 +112,8 @@ dependencies {
     implementation platform('com.google.firebase:firebase-bom:33.7.0')
     implementation 'com.google.firebase:firebase-messaging'
     implementation 'androidx.work:work-runtime:2.9.1'
+    implementation 'com.google.android.gms:play-services-location:21.3.0'
+    implementation 'com.android.billingclient:billing:7.1.1'
 }
 `;
 }

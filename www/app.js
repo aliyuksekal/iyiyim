@@ -17,7 +17,7 @@
       ayarla: async () => ({}),
       jetonAl: async () => ({ token: "" }),
       bildirimIzni: async () => ({ durum: "granted" }),
-      izinDurumu: async () => ({ bildirim: true, tamAlarm: true, pilMuaf: false, ustte: false, sdk: 34 }),
+      izinDurumu: async () => ({ bildirim: true, tamAlarm: true, pilMuaf: false, ustte: false, tamEkran: false, konum: true, ton: "zil", sdk: 34 }),
       pilAyari: async () => ({}),
       alarmAyari: async () => ({}),
       usteAyari: async () => ({}),
@@ -25,6 +25,14 @@
       uygulamaAyarlariAc: async () => ({}),
       cevapSirala: async () => ({}),
       cihaz: async () => ({ marka: "Xiaomi", model: "Redmi Note 12", sdk: 34, surum: "14" }),
+      tamEkranAyari: async () => ({}),
+      konumIzni: async () => ({ durum: "granted" }),
+      konumAl: async () => ({ lat: 41.0082, lng: 28.9784, hassas: 15, zaman: Date.now() }),
+      tonSec: async (o) => ({ ton: o.ton }),
+      tonDinle: async () => ({}),
+      tonDurdur: async () => ({}),
+      destekFiyati: async () => ({ durum: "hata", fiyat: "", mesaj: "" }),
+      destekOl: async () => ({ durum: "hata", mesaj: "Destek seçeneği Play Store sürümünde etkin olacak." }),
       otomatikBaslatma: async () => ({ ozel: true }),
       alarmKur: async (o) => { console.log("alarmKur", o); return {}; },
       alarmIptal: async () => ({}),
@@ -40,7 +48,7 @@
   const yaz = (k, v) => { try { localStorage.setItem("iyiyim." + k, JSON.stringify(v)); } catch (e) {} };
 
   let kimlik = oku("kimlik", null);                   // {id, sifre, ad}
-  let ayar = Object.assign({ sureDk: 15, tema: "sistem" }, oku("ayar", {}));
+  let ayar = Object.assign({ sureDk: 15, tema: "sistem", ton: "zil" }, oku("ayar", {}));
   if (![15, 30, 60, 120, 240].includes(+ayar.sureDk)) ayar.sureDk = +ayar.sureDk > 120 ? 240 : 15;
   delete ayar.sunucu; // sunucu adresi yalnızca uygulamanın içinden gelir, kullanıcı değiştiremez
   let telefonlar = oku("telefonlar", {});            // {kisiId: "05..."}
@@ -181,10 +189,13 @@
       return `
         <div class="kisi ${d.sinif}">
           <div class="avatar" aria-hidden="true">${kacis((k.ad || "?").trim().charAt(0).toLocaleUpperCase("tr"))}</div>
-          <button class="kisi-bilgi" data-kisi="${kacis(k.id)}">
-            <span class="kisi-ad">${kacis(k.ad)}</span>
-            <span class="kisi-durum">${kacis(d.metin)}</span>
-          </button>
+          <div class="kisi-orta">
+            <button class="kisi-bilgi" data-kisi="${kacis(k.id)}">
+              <span class="kisi-ad">${kacis(k.ad)}</span>
+              <span class="kisi-durum">${kacis(d.metin)}</span>
+            </button>
+            ${d.sinif === "durum-yardim" && k.sonSoru && k.sonSoru.konum ? `<a class="konum-link" href="https://www.google.com/maps/search/?api=1&query=${k.sonSoru.konum.lat},${k.sonSoru.konum.lng}">📍 Konumu gör</a>` : ""}
+          </div>
           ${sag}
         </div>`;
     }).join("");
@@ -259,15 +270,21 @@
   // ---------- cevaplama ----------
   async function cevapla(soruId, cevap) {
     const gelen = ((veri && veri.kisiler) || []).find((k) => k.bekleyenSoru && k.bekleyenSoru.id === soruId);
+    let konum = null;
+    if (cevap === "yardim") {
+      tost("Konumun alınıyor…", 10000);
+      const k = await Iyiyim.konumAl().catch(() => ({}));
+      if (k && isFinite(k.lat) && isFinite(k.lng)) konum = k;
+    }
     try {
-      await istek("/cevap", { soruId, cevap });
+      await istek("/cevap", konum ? { soruId, cevap, konum } : { soruId, cevap });
       Iyiyim.soruBildirimiKapat({ soruId }).catch(() => {});
-      tost(cevap === "iyi" ? "“İyiyim” gönderildi" : cevap === "sonra" ? "“Sonra ararım” gönderildi" : "Yardım isteğin gönderildi");
+      tost(cevap === "iyi" ? "“İyiyim” gönderildi" : cevap === "sonra" ? "“Sonra ararım” gönderildi" : konum ? "Yardım isteğin ve konumun gönderildi" : "Yardım isteğin gönderildi");
       $("#soru-ekran").hidden = true;
       yenile();
     } catch (e) {
       if (e.ag && yerel) {
-        await Iyiyim.cevapSirala({ soruId, cevap, ad: gelen ? gelen.ad : "" }).catch(() => {});
+        await Iyiyim.cevapSirala({ soruId, cevap, ad: gelen ? gelen.ad : "", konum: konum || undefined }).catch(() => {});
         $("#soru-ekran").hidden = true;
         tost("İnternet yok. Cevabın bağlantı gelince otomatik gönderilecek.", 4000);
       } else {
@@ -618,6 +635,41 @@
   $("#deneme-simdi").addEventListener("click", () => bildirimDene(0));
   $("#deneme-kapali").addEventListener("click", () => bildirimDene(15));
 
+  // --- bildirim tonu ---
+  $("#ayar-ton").addEventListener("change", async (e) => {
+    ayar.ton = e.target.value; yaz("ayar", ayar);
+    await Iyiyim.tonSec({ ton: ayar.ton }).catch(() => {});
+    Iyiyim.tonDinle({ ton: ayar.ton }).catch(() => {});
+    tost(`Bildirim tonu: ${e.target.selectedOptions[0].textContent}`);
+  });
+  $("#ton-dinle").addEventListener("click", () => Iyiyim.tonDinle({ ton: $("#ayar-ton").value }).catch(() => {}));
+
+  // --- geliştiriciyi destekle ---
+  $("#alt-surum").textContent = "Sürüm " + (window.IYIYIM_SURUM || "");
+  $("#destek-ac").addEventListener("click", async () => {
+    sayfaAc("#sayfa-destek");
+    const r = await Iyiyim.destekFiyati().catch(() => ({}));
+    if (r && r.fiyat) $("#destek-fiyat").textContent = r.fiyat;
+  });
+  $("#destek-ol").addEventListener("click", async () => {
+    const b = $("#destek-ol");
+    b.disabled = true;
+    try {
+      const r = await Iyiyim.destekOl();
+      if (r.durum === "tesekkurler") {
+        $("#destek-baslik").textContent = "Teşekkür ederim 💚";
+        $("#destek-metin").innerHTML = "<p>Desteğin ulaştı. Bugün birinin “İyiyim” diyebilmesine sen de katkı verdin.</p><p>Bu uygulamayı her geliştirdiğimde aklımda olacaksın.</p>";
+        b.hidden = true;
+        $("#destek-not").textContent = "— matali";
+      } else if (r.durum === "iptal") {
+        tost("Sorun değil, İyiyim seninle 💚");
+      } else if (r.mesaj) {
+        tost(r.mesaj, 4000);
+      }
+    } catch (e) { tost("Ödeme başlatılamadı"); }
+    finally { b.disabled = false; }
+  });
+
   // --- ayarlar ---
   function ayarlariDoldur() {
     $("#ayar-ad").value = kimlik ? kimlik.ad : "";
@@ -628,6 +680,7 @@
   }
   function secimleriGoster() {
     $("#ayar-sure").value = String(ayar.sureDk);
+    $("#ayar-ton").value = ayar.ton;
     $$("#ayar-tema button").forEach((b) => b.classList.toggle("secili", b.dataset.deger === ayar.tema));
   }
   async function izinleriGoster() {
@@ -638,6 +691,14 @@
       db.className = d.bildirim ? "tamam" : "eksik";
       da.textContent = d.tamAlarm ? "Açık" : "Kapalı";
       da.className = d.tamAlarm ? "tamam" : "eksik";
+      const dt = $("#durum-tamekran");
+      dt.textContent = d.tamEkran ? "Açık" : "Kapalı";
+      dt.className = d.tamEkran ? "tamam" : "eksik";
+      $("#ayar-tamekran-satir").hidden = d.sdk < 34;
+      $("#izin-tamekran-satir").hidden = d.sdk < 34;
+      const dk = $("#durum-konum");
+      dk.textContent = d.konum ? "Açık" : "Kapalı";
+      dk.className = d.konum ? "tamam" : "eksik";
       const du = $("#durum-ustte");
       du.textContent = d.ustte ? "Açık" : "Kapalı";
       du.className = d.ustte ? "tamam" : "eksik";
@@ -698,6 +759,12 @@
         await Iyiyim.pilAyari();
       } else if (tur === "alarm") {
         await Iyiyim.alarmAyari();
+      } else if (tur === "tamekran") {
+        await Iyiyim.tamEkranAyari();
+      } else if (tur === "konum") {
+        const r = await Iyiyim.konumIzni();
+        if (r.durum === "granted" && dugme) { dugme.textContent = "Tamam ✓"; dugme.classList.add("tamam"); }
+        if (r.durum !== "granted") tost("Konum izni verilmedi. Yardım isteği konumsuz gider.");
       } else if (tur === "ustte") {
         await Iyiyim.usteAyari();
       } else if (tur === "sesli") {
@@ -759,6 +826,7 @@
 
   // ---------- yerel tarafla eşitleme ----------
   async function yerelAyarla() {
+    Iyiyim.tonSec({ ton: ayar.ton }).catch(() => {});
     await Iyiyim.ayarla({ sunucu: sunucu(), id: kimlik ? kimlik.id : "", sifre: kimlik ? kimlik.sifre : "" }).catch(() => {});
     await Iyiyim.telefonlar({ liste: telefonlar }).catch(() => {});
   }

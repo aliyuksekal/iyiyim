@@ -36,6 +36,14 @@
           <div><b>Ekranda açılsın</b><span>Biri sorduğunda soru, açık olan uygulamanın üstünde belirsin. “İyiyim'i diğer uygulamaların üstünde göster”i aç.</span></div>
           <button class="dugme dugme-kucuk" data-izin="ustte">Aç</button>
         </div>
+        <div class="izin-satir" id="izin-tamekran-satir">
+          <div><b>Kilit ekranında açılsın</b><span>Telefon kilitliyken de soru ekranı kendiliğinden açılsın.</span></div>
+          <button class="dugme dugme-kucuk" data-izin="tamekran">Aç</button>
+        </div>
+        <div class="izin-satir">
+          <div><b>Konum</b><span>Sadece “Yardım lazım” dediğinde, o anki konumun soran kişiye gider. Başka zaman konumun alınmaz.</span></div>
+          <button class="dugme dugme-kucuk" data-izin="konum">İzin ver</button>
+        </div>
         <div class="izin-satir">
           <div><b>Pil kısıtlaması</b><span>Bazı telefonlar bildirimleri geciktirir. İyiyim'i “kısıtlama yok” yap.</span></div>
           <button class="dugme dugme-kucuk" data-izin="pil">Aç</button>
@@ -85,6 +93,13 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
         Kişi ekle
       </button>
+      <div class="alt-bilgi">
+        <span class="surum-etiket" id="alt-surum"></span>
+        <button class="destek-baglanti" id="destek-ac">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"/></svg>
+          Geliştiriciyi destekle
+        </button>
+      </div>
     </div>
   </section>
 
@@ -162,6 +177,21 @@
     </div>
     <p class="ipucu kucuk">Sorduktan sonra bu süre içinde cevap gelmezse telefonun sesli alarm çalar.</p>
 
+    <p class="etiket">Bildirim tonu</p>
+    <div class="satir-girdi">
+      <div class="secmeli-kap" style="flex:1">
+        <select id="ayar-ton" class="girdi secmeli" aria-label="Bildirim tonu">
+          <option value="zil">Klasik zil</option>
+          <option value="can">Çan</option>
+          <option value="siren">Siren</option>
+          <option value="alarm">Dijital alarm</option>
+          <option value="melodi">Melodi</option>
+        </select>
+      </div>
+      <button class="dugme dugme-ikincil" id="ton-dinle">Dinle</button>
+    </div>
+    <p class="ipucu kucuk">Gelen sorular ve alarmlar bu tonla, yüksek sesle çalar.</p>
+
     <p class="etiket">Görünüm</p>
     <div class="secim" id="ayar-tema">
       <button data-deger="sistem">Sistem</button><button data-deger="koyu">Koyu</button><button data-deger="acik">Açık</button>
@@ -172,6 +202,8 @@
       <button class="ayar-satir vurgulu" id="deneme-ac"><span>Bildirimleri dene<small>Sorun nerede, adım adım kontrol eder</small></span><em>Dene</em></button>
       <button class="ayar-satir" id="marka-ac"><span>Telefonuna özel ayarlar<small id="marka-alt">Markana göre gereken ayarlar</small></span><em>Aç</em></button>
       <button class="ayar-satir" data-izin="bildirim"><span>Bildirim izni</span><em id="durum-bildirim"></em></button>
+      <button class="ayar-satir" data-izin="tamekran" id="ayar-tamekran-satir"><span>Kilit ekranında açılsın<small>Telefon kilitliyken soru ekranı kendiliğinden açılır</small></span><em id="durum-tamekran"></em></button>
+      <button class="ayar-satir" data-izin="konum"><span>Konum izni<small>Sadece “Yardım lazım” dediğinde kullanılır</small></span><em id="durum-konum"></em></button>
       <button class="ayar-satir" data-izin="ustte"><span>Soru ekranda açılsın<small>Diğer uygulamaların üstünde göster</small></span><em id="durum-ustte"></em></button>
       <button class="ayar-satir" data-izin="sesli"><span>Ses ve açılır bildirim<small>“Gelen sorular” için sesi ve açılır pencereyi aç</small></span><em>Ayarla</em></button>
       <button class="ayar-satir" data-izin="pil"><span>Pil kısıtlamasını kaldır</span><em>Aç</em></button>
@@ -200,7 +232,8 @@
     <ul class="gizlilik-liste">
       <li><b>Sunucuda tutulan:</b> adın, rastgele bir hesap kimliği, bildirim jetonu, kimleri eklediğin, sorular ve cevaplar.</li>
       <li><b>Sadece telefonunda kalan:</b> kişilere yazdığın telefon numaraları.</li>
-      <li><b>Hiç almadığımız:</b> konum, rehber, telefon numaran, e-postan, mesajların. Reklam ve analiz aracı yok.</li>
+      <li><b>Konum:</b> sadece “Yardım lazım” dediğin an bir kez alınır ve yalnızca sana soran kişiye gider. Arka planda takip yok.</li>
+      <li><b>Hiç almadığımız:</b> rehber, telefon numaran, e-postan, mesajların. Reklam ve analiz aracı yok.</li>
       <li>Soru ve cevaplar <b>30 gün</b> sonra kendiliğinden silinir.</li>
       <li>Ayarlar → Gelişmiş → <b>Hesabımı sil</b> her şeyi anında siler.</li>
       <li>Altyapı: Google Firebase (bildirim) ve Cloudflare (sunucu). Bağlantı HTTPS ile şifreli.</li>
@@ -224,6 +257,23 @@
     <div class="tutamac"></div>
     <h2 id="marka-baslik">Telefonuna özel ayarlar</h2>
     <div class="marka-kart" id="ayar-marka"></div>
+  </div>
+
+  <div id="sayfa-destek" class="alt-sayfa destek-sayfa" role="dialog" aria-modal="true" aria-labelledby="destek-baslik" hidden>
+    <div class="tutamac"></div>
+    <div class="destek-kalp" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"/></svg>
+    </div>
+    <h2 id="destek-baslik">Bugün içini rahatlattıysa…</h2>
+    <div class="destek-metin" id="destek-metin">
+      <p>Belki ekranda annenin “İyiyim” dediğini gördün ve bir an derin bir nefes aldın. Belki de merak ettiğin birine tek dokunuşla ulaştın. İyiyim tam o an için var.</p>
+      <p>Bu uygulamanın arkasında büyük bir şirket yok. Sevdiklerimiz biraz daha yakın olsun diye gece geç saatlere kadar emek veren tek bir geliştirici var. Reklam yok, verilerin satılmıyor, kimse seni izlemiyor.</p>
+      <p>İyiyim bir gün sana o rahat nefesi aldırdıysa, bunu bir teşekkürle karşılayabilirsin. Desteğin sunucuların açık kalmasını ve bir sonraki “İyiyim”in de zamanında ulaşmasını sağlar.</p>
+    </div>
+    <button class="dugme dugme-ana dugme-genis destek-dugme" id="destek-ol">
+      <span id="destek-fiyat">149,99 ₺</span> ile destekle
+    </button>
+    <p class="ipucu kucuk destek-not" id="destek-not">İsteğe bağlı ve tek seferlik. Desteklemesen de İyiyim'in her özelliği aynen çalışır.</p>
   </div>
 
   <div id="tost" class="tost" role="status" hidden></div>

@@ -29,7 +29,10 @@ import java.util.List;
 /** Arayüz (JavaScript) ile Android tarafı arasındaki köprü. */
 @CapacitorPlugin(
         name = "Iyiyim",
-        permissions = {@Permission(strings = {Manifest.permission.POST_NOTIFICATIONS}, alias = "bildirim")}
+        permissions = {
+                @Permission(strings = {Manifest.permission.POST_NOTIFICATIONS}, alias = "bildirim"),
+                @Permission(strings = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, alias = "konum")
+        }
 )
 public class IyiyimPlugin extends Plugin {
 
@@ -137,6 +140,9 @@ public class IyiyimPlugin extends Plugin {
         PowerManager pm = (PowerManager) c.getSystemService(Context.POWER_SERVICE);
         r.put("pilMuaf", pm != null && pm.isIgnoringBatteryOptimizations(c.getPackageName()));
         r.put("ustte", Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(c));
+        r.put("tamEkran", Ortak.tamEkranIzni(c));
+        r.put("konum", Konum.izinVar(c));
+        r.put("ton", Ortak.ton(c));
         r.put("sdk", Build.VERSION.SDK_INT);
         call.resolve(r);
     }
@@ -163,7 +169,7 @@ public class IyiyimPlugin extends Plugin {
             if (Build.VERSION.SDK_INT >= 26) {
                 i = new Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS);
                 i.putExtra(Settings.EXTRA_APP_PACKAGE, c.getPackageName());
-                i.putExtra(Settings.EXTRA_CHANNEL_ID, Ortak.KANAL_SORU);
+                i.putExtra(Settings.EXTRA_CHANNEL_ID, Ortak.kanalSoru(c));
             } else {
                 i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + c.getPackageName()));
             }
@@ -173,6 +179,139 @@ public class IyiyimPlugin extends Plugin {
             uygulamaAyarlari(c);
         }
         call.resolve();
+    }
+
+    // ---------------- kilit ekranı (tam ekran bildirim izni, Android 14+) ----------------
+    @PluginMethod
+    public void tamEkranAyari(PluginCall call) {
+        Context c = getContext();
+        if (Build.VERSION.SDK_INT >= 34) {
+            try {
+                Intent i = new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:" + c.getPackageName()));
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                c.startActivity(i);
+            } catch (Exception e) {
+                uygulamaAyarlari(c);
+            }
+        }
+        call.resolve();
+    }
+
+    // ---------------- konum ----------------
+    @PluginMethod
+    public void konumIzni(PluginCall call) {
+        if (Konum.izinVar(getContext())) {
+            JSObject r = new JSObject();
+            r.put("durum", "granted");
+            call.resolve(r);
+            return;
+        }
+        requestPermissionForAlias("konum", call, "konumIzniSonuc");
+    }
+
+    @PermissionCallback
+    private void konumIzniSonuc(PluginCall call) {
+        JSObject r = new JSObject();
+        r.put("durum", Konum.izinVar(getContext()) ? "granted" : "denied");
+        call.resolve(r);
+    }
+
+    /** Uygulama açıkken "Yardım"a basılınca anlık konum. İzin yoksa önce izin ister. */
+    @PluginMethod
+    public void konumAl(PluginCall call) {
+        if (!Konum.izinVar(getContext())) {
+            requestPermissionForAlias("konum", call, "konumAlSonuc");
+            return;
+        }
+        konumuGetir(call);
+    }
+
+    @PermissionCallback
+    private void konumAlSonuc(PluginCall call) {
+        if (!Konum.izinVar(getContext())) {
+            call.resolve(new JSObject());
+            return;
+        }
+        konumuGetir(call);
+    }
+
+    private void konumuGetir(PluginCall call) {
+        Konum.al(getContext(), k -> {
+            try {
+                call.resolve(k == null ? new JSObject() : JSObject.fromJSONObject(k));
+            } catch (Exception e) {
+                call.resolve(new JSObject());
+            }
+        });
+    }
+
+    // ---------------- tonlar ----------------
+    private static android.media.MediaPlayer calar;
+
+    @PluginMethod
+    public void tonSec(PluginCall call) {
+        String t = call.getString("ton", "zil");
+        Ortak.tercih(getContext()).edit().putString("ton", t).apply();
+        Ortak.kanallariKur(getContext());
+        JSObject r = new JSObject();
+        r.put("ton", Ortak.ton(getContext()));
+        call.resolve(r);
+    }
+
+    @PluginMethod
+    public void tonDinle(PluginCall call) {
+        String t = call.getString("ton", Ortak.ton(getContext()));
+        tonDurdurIc();
+        try {
+            android.media.MediaPlayer m = new android.media.MediaPlayer();
+            m.setAudioAttributes(Ortak.yuksekSes());
+            m.setDataSource(getContext(), Ortak.tonUri(getContext(), t));
+            m.setOnCompletionListener(x -> tonDurdurIc());
+            m.prepare();
+            m.start();
+            calar = m;
+        } catch (Exception ignored) {}
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void tonDurdur(PluginCall call) {
+        tonDurdurIc();
+        call.resolve();
+    }
+
+    private static synchronized void tonDurdurIc() {
+        if (calar != null) {
+            try { calar.stop(); } catch (Exception ignored) {}
+            try { calar.release(); } catch (Exception ignored) {}
+            calar = null;
+        }
+    }
+
+    // ---------------- geliştiriciyi destekle ----------------
+    @PluginMethod
+    public void destekFiyati(PluginCall call) {
+        Destek.fiyatAl(getContext(), (durum, fiyat, mesaj) -> {
+            JSObject r = new JSObject();
+            r.put("durum", durum);
+            r.put("fiyat", fiyat);
+            r.put("mesaj", mesaj);
+            call.resolve(r);
+        });
+    }
+
+    @PluginMethod
+    public void destekOl(PluginCall call) {
+        if (getActivity() == null) {
+            call.reject("Ekran hazır değil");
+            return;
+        }
+        Destek.baslat(getActivity(), (durum, fiyat, mesaj) -> {
+            JSObject r = new JSObject();
+            r.put("durum", durum);
+            r.put("mesaj", mesaj);
+            call.resolve(r);
+        });
     }
 
     @PluginMethod
@@ -306,7 +445,12 @@ public class IyiyimPlugin extends Plugin {
             call.reject("soruId ve cevap gerekli");
             return;
         }
-        Ortak.cevapSirala(getContext(), soruId, cevap, call.getString("ad", ""));
+        JSONObject konum = null;
+        try {
+            JSObject k = call.getObject("konum");
+            if (k != null && k.has("lat")) konum = k;
+        } catch (Exception ignored) {}
+        Ortak.cevapSirala(getContext(), soruId, cevap, call.getString("ad", ""), konum);
         Ortak.kapat(getContext(), Ortak.noSoru(soruId));
         call.resolve();
     }

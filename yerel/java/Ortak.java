@@ -36,14 +36,39 @@ public final class Ortak {
     private Ortak() {}
 
     static final String TERCIH = "iyiyim";
-    static final String KANAL_SORU = "soru_v2";
     static final String KANAL_CEVAP = "cevaplar";
-    static final String KANAL_ALARM = "alarm_v1";
     static final String KANAL_DURUM = "durum";
     static final int RENK = 0xFF0E9F74;
 
+    /** Seçilebilen yüksek sesli tonlar (res/raw/ton_*.ogg). */
+    static final String[] TONLAR = {"zil", "can", "siren", "alarm", "melodi"};
+
     static SharedPreferences tercih(Context c) {
         return c.getSharedPreferences(TERCIH, Context.MODE_PRIVATE);
+    }
+
+    static String ton(Context c) {
+        String t = tercih(c).getString("ton", "zil");
+        for (String x : TONLAR) if (x.equals(t)) return t;
+        return "zil";
+    }
+
+    /** Kanal sesi sonradan değiştirilemediği için her ton kendi kanalını kullanır. */
+    static String kanalSoru(Context c) { return "soru_" + ton(c) + "_v3"; }
+    static String kanalAlarm(Context c) { return "alarm_" + ton(c) + "_v2"; }
+
+    static Uri tonUri(Context c, String ton) {
+        int id = c.getResources().getIdentifier("ton_" + ton, "raw", c.getPackageName());
+        if (id == 0) return alarmSesi();
+        return Uri.parse("android.resource://" + c.getPackageName() + "/" + id);
+    }
+
+    static AudioAttributes yuksekSes() {
+        // Alarm ses seviyesinden çalar: telefon sessizdeyken bile duyulur (çoğu telefonda)
+        return new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build();
     }
 
     // ---------------- kanallar ----------------
@@ -51,20 +76,25 @@ public final class Ortak {
         if (Build.VERSION.SDK_INT < 26) return;
         NotificationManager nm = c.getSystemService(NotificationManager.class);
         if (nm == null) return;
+        String soruId = kanalSoru(c), alarmId = kanalAlarm(c);
 
-        // Eski sürümün sessiz/kısık kanalını kaldır (kanal ayarları sonradan değiştirilemez)
-        try { nm.deleteNotificationChannel("sorular"); } catch (Exception ignored) {}
+        // Eski / başka tona ait kanalları kaldır
+        try {
+            for (NotificationChannel k : nm.getNotificationChannels()) {
+                String id = k.getId();
+                boolean eski = id.equals("sorular") || id.equals("soru_v2") || id.equals("alarm_v1")
+                        || ((id.startsWith("soru_") || id.startsWith("alarm_")) && !id.equals(soruId) && !id.equals(alarmId));
+                if (eski) nm.deleteNotificationChannel(id);
+            }
+        } catch (Exception ignored) {}
 
-        NotificationChannel soru = new NotificationChannel(KANAL_SORU, "Gelen sorular", NotificationManager.IMPORTANCE_HIGH);
-        soru.setDescription("Biri sana “İyi misin?” diye sorduğunda: sesli, ekranda açılır");
-        Uri soruSesi = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-        if (soruSesi == null) soruSesi = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
-        soru.setSound(soruSesi, new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build());
+        Uri ses = tonUri(c, ton(c));
+
+        NotificationChannel soru = new NotificationChannel(soruId, "Gelen sorular", NotificationManager.IMPORTANCE_HIGH);
+        soru.setDescription("Biri sana “İyi misin?” diye sorduğunda: yüksek sesli, ekranda açılır");
+        soru.setSound(ses, yuksekSes());
         soru.enableVibration(true);
-        soru.setVibrationPattern(new long[]{0, 500, 250, 500, 250, 500});
+        soru.setVibrationPattern(new long[]{0, 600, 300, 600, 300, 600});
         soru.enableLights(true);
         soru.setLightColor(RENK);
         soru.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
@@ -72,14 +102,9 @@ public final class Ortak {
         NotificationChannel cevap = new NotificationChannel(KANAL_CEVAP, "Cevaplar", NotificationManager.IMPORTANCE_HIGH);
         cevap.setDescription("Sorduğun kişi cevap verdiğinde");
 
-        NotificationChannel alarm = new NotificationChannel(KANAL_ALARM, "Cevap gelmedi alarmı", NotificationManager.IMPORTANCE_HIGH);
+        NotificationChannel alarm = new NotificationChannel(alarmId, "Cevap gelmedi / Yardım alarmı", NotificationManager.IMPORTANCE_HIGH);
         alarm.setDescription("Sorduğun kişi zamanında cevap vermezse ya da yardım isterse");
-        Uri ses = alarmSesi();
-        AudioAttributes aa = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ALARM)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build();
-        alarm.setSound(ses, aa);
+        alarm.setSound(ses, yuksekSes());
         alarm.enableVibration(true);
         alarm.setVibrationPattern(new long[]{0, 900, 500, 900, 500, 900});
         alarm.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
@@ -132,46 +157,75 @@ public final class Ortak {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
-    static PendingIntent soruEkraniNiyeti(Context c, String soruId, String ad) {
+    static Intent soruEkraniIntent(Context c, String soruId, String ad, String otomatik) {
         Intent i = new Intent(c, SoruActivity.class);
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         i.putExtra("soruId", soruId);
         i.putExtra("ad", ad);
-        return PendingIntent.getActivity(c, noSoru(soruId), i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        if (otomatik != null) i.putExtra("otomatik", otomatik);
+        return i;
     }
 
-    /** İzin varsa soru ekranını diğer uygulamaların ve kilit ekranının üstünde açar. */
-    static boolean soruEkraniAc(Context c, String soruId, String ad) {
-        if (Build.VERSION.SDK_INT >= 23 && !android.provider.Settings.canDrawOverlays(c)) return false;
-        try {
-            Intent i = new Intent(c, SoruActivity.class);
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            i.putExtra("soruId", soruId);
-            i.putExtra("ad", ad);
-            c.startActivity(i);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
+    static PendingIntent soruEkraniNiyeti(Context c, String soruId, String ad) {
+        return PendingIntent.getActivity(c, noSoru(soruId), soruEkraniIntent(c, soruId, ad, null),
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    /** "Yardım lazım": konum ancak ekran görünürken alınabildiği için soru ekranı üzerinden gönderilir. */
+    static PendingIntent yardimNiyeti(Context c, String soruId, String ad) {
+        return PendingIntent.getActivity(c, ("y" + soruId).hashCode(), soruEkraniIntent(c, soruId, ad, "yardim"),
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    /** Kilit ekranında tam ekran açılabilir mi (Android 14+ kullanıcı izni). */
+    static boolean tamEkranIzni(Context c) {
+        if (Build.VERSION.SDK_INT < 34) return true;
+        NotificationManager nm = c.getSystemService(NotificationManager.class);
+        return nm != null && nm.canUseFullScreenIntent();
+    }
+
+    static boolean ekranKilitliYaKapali(Context c) {
+        android.app.KeyguardManager km = (android.app.KeyguardManager) c.getSystemService(Context.KEYGUARD_SERVICE);
+        android.os.PowerManager pm = (android.os.PowerManager) c.getSystemService(Context.POWER_SERVICE);
+        boolean kilitli = km != null && km.isKeyguardLocked();
+        boolean kapali = pm != null && !pm.isInteractive();
+        return kilitli || kapali;
+    }
+
+    /**
+     * Soru gelince ekranı kaplar:
+     *  - ekran kapalı/kilitliyse bildirimin tam ekran niyeti SoruActivity'yi kilit ekranının üstünde açar,
+     *  - telefon kullanılıyorsa "diğer uygulamaların üstünde göster" izniyle doğrudan üst pencere açılır.
+     */
+    static void soruEkraniAc(Context c, String soruId, String ad) {
+        if (ekranKilitliYaKapali(c)) return; // tam ekran niyeti halleder
+        if (Build.VERSION.SDK_INT >= 23 && !android.provider.Settings.canDrawOverlays(c)) return;
+        UstPencere.goster(c, soruId, ad);
     }
 
     static void soruGoster(Context c, String soruId, String ad, String altMetin) {
-        NotificationCompat.Builder b = new NotificationCompat.Builder(c, KANAL_SORU)
+        kanallariKur(c);
+        NotificationCompat.Builder b = new NotificationCompat.Builder(c, kanalSoru(c))
                 .setSmallIcon(R.drawable.ic_stat_iyiyim)
                 .setColor(RENK)
                 .setContentTitle(ad + " soruyor: İyi misin?")
                 .setContentText(altMetin != null ? altMetin : "Aşağıdan tek dokunuşla cevap ver.")
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setAutoCancel(true)
                 .setTimeoutAfter(6L * 60 * 60 * 1000)
                 .setContentIntent(soruEkraniNiyeti(c, soruId, ad))
                 .addAction(0, "İyiyim", cevapNiyeti(c, soruId, "iyi", ad))
                 .addAction(0, "Sonra ararım", cevapNiyeti(c, soruId, "sonra", ad))
-                .addAction(0, "Yardım lazım", cevapNiyeti(c, soruId, "yardim", ad));
+                .addAction(0, "Yardım lazım", yardimNiyeti(c, soruId, ad));
+        if (altMetin == null) {
+            // Kilit ekranında / ekran kapalıyken soruyu tam ekran açar
+            b.setFullScreenIntent(soruEkraniNiyeti(c, soruId, ad), true);
+        }
         if (Build.VERSION.SDK_INT < 26) {
-            b.setDefaults(Notification.DEFAULT_ALL);
+            b.setSound(tonUri(c, ton(c)), AudioManager.STREAM_ALARM);
+            b.setVibrate(new long[]{0, 600, 300, 600, 300, 600});
         }
         Notification n = b.build();
         if (altMetin == null) n.flags |= Notification.FLAG_INSISTENT; // cevap verilene ya da dokunulana kadar ses tekrar eder
@@ -329,8 +383,14 @@ public final class Ortak {
 
     /** Cevabı internet gelince gönderilmek üzere sıraya koyar. */
     static void cevapSirala(Context c, String soruId, String cevap, String ad) {
+        cevapSirala(c, soruId, cevap, ad, null);
+    }
+
+
+    static void cevapSirala(Context c, String soruId, String cevap, String ad, JSONObject konum) {
         androidx.work.Data veri = new androidx.work.Data.Builder()
-                .putString("soruId", soruId).putString("cevap", cevap).putString("ad", ad).build();
+                .putString("soruId", soruId).putString("cevap", cevap).putString("ad", ad)
+                .putString("konum", konum == null ? "" : konum.toString()).build();
         androidx.work.OneTimeWorkRequest is = new androidx.work.OneTimeWorkRequest.Builder(CevapIsci.class)
                 .setConstraints(new androidx.work.Constraints.Builder()
                         .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED).build())
@@ -341,41 +401,67 @@ public final class Ortak {
     }
 
     static void alarmCal(Context c, String soruId, String kisiId, String ad, long soruldu, boolean yardim) {
+        alarmCal(c, soruId, kisiId, ad, soruldu, yardim, Double.NaN, Double.NaN, "");
+    }
+
+    static String haritaAdresi(double lat, double lng) {
+        return "https://www.google.com/maps/search/?api=1&query=" + lat + "," + lng;
+    }
+
+    static void alarmCal(Context c, String soruId, String kisiId, String ad, long soruldu, boolean yardim,
+                         double lat, double lng, String hassas) {
+        kanallariKur(c);
         String tel = telefon(c, kisiId);
+        boolean konumVar = !Double.isNaN(lat) && !Double.isNaN(lng);
         long dk = Math.max(1, (System.currentTimeMillis() - soruldu) / 60000);
         String baslik = yardim ? ad + " yardım istiyor!" : ad + " cevap vermedi";
-        String metin = yardim
-                ? (tel.isEmpty() ? "Hemen ulaşmaya çalış." : "Hemen ara.")
-                : dk + " dakika önce sordun. " + (tel.isEmpty() ? "Ulaşmaya çalış." : "Hemen ara.");
+        String metin;
+        if (yardim) {
+            metin = konumVar
+                    ? "Konumunu gönderdi" + (hassas != null && !hassas.isEmpty() ? " (±" + hassas + " m)" : "") + ". " + (tel.isEmpty() ? "Hemen ulaş." : "Hemen ara.")
+                    : (tel.isEmpty() ? "Hemen ulaşmaya çalış." : "Hemen ara.");
+        } else {
+            metin = dk + " dakika önce sordun. " + (tel.isEmpty() ? "Ulaşmaya çalış." : "Hemen ara.");
+        }
 
-        NotificationCompat.Builder b = new NotificationCompat.Builder(c, KANAL_ALARM)
+        NotificationCompat.Builder b = new NotificationCompat.Builder(c, kanalAlarm(c))
                 .setSmallIcon(R.drawable.ic_stat_iyiyim)
                 .setColor(0xFFD3283F)
                 .setContentTitle(baslik)
                 .setContentText(metin)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(metin))
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setAutoCancel(true)
-                .setContentIntent(uygulamaAc(c, noAlarm(soruId)));
+                .setContentIntent(uygulamaAc(c, noAlarm(soruId)))
+                .setFullScreenIntent(uygulamaAc(c, noAlarm(soruId) + 1), true);
         if (Build.VERSION.SDK_INT < 26) {
-            b.setSound(alarmSesi(), AudioManager.STREAM_ALARM);
+            b.setSound(tonUri(c, ton(c)), AudioManager.STREAM_ALARM);
             b.setVibrate(new long[]{0, 900, 500, 900, 500, 900});
         }
+        int eylem = 0;
         if (!tel.isEmpty()) {
             Intent ara = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + tel));
             ara.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            PendingIntent api = PendingIntent.getActivity(c, ("ara" + soruId).hashCode(), ara,
-                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-            b.addAction(0, "Ara", api);
+            b.addAction(0, "Ara", PendingIntent.getActivity(c, ("ara" + soruId).hashCode(), ara,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
+            eylem++;
+        }
+        if (konumVar) {
+            Intent k = new Intent(Intent.ACTION_VIEW, Uri.parse(haritaAdresi(lat, lng)));
+            k.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            b.addAction(0, "Konumu aç", PendingIntent.getActivity(c, ("kn" + soruId).hashCode(), k,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
+            eylem++;
         }
         String wp = uluslararasi(tel);
-        if (!wp.isEmpty()) {
+        if (!wp.isEmpty() && eylem < 2) {
             Intent w = new Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/" + wp));
             w.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            PendingIntent wpi = PendingIntent.getActivity(c, ("wp" + soruId).hashCode(), w,
-                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-            b.addAction(0, "WhatsApp", wpi);
+            b.addAction(0, "WhatsApp", PendingIntent.getActivity(c, ("wp" + soruId).hashCode(), w,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
+            eylem++;
         }
         Intent sus = new Intent(c, CevapAlici.class);
         sus.setAction("com.matali.iyiyim.SUSTUR");

@@ -52,7 +52,8 @@ public class MesajServisi extends FirebaseMessagingService {
                 long soruldu = a != null ? a.optLong("soruldu", System.currentTimeMillis()) : System.currentTimeMillis();
                 Ortak.alarmIptal(this, soruId);
                 if ("yardim".equals(cevap)) {
-                    Ortak.alarmCal(this, soruId, kimden, ad, soruldu, true);
+                    Ortak.alarmCal(this, soruId, kimden, ad, soruldu, true,
+                            sayi(deger(v, "lat")), sayi(deger(v, "lng")), deger(v, "hassas"));
                 } else {
                     Ortak.cevapGoster(this, soruId, ad, cevap);
                 }
@@ -85,6 +86,14 @@ public class MesajServisi extends FirebaseMessagingService {
                 return;
         }
         Ortak.olay(this, olay);
+    }
+
+    private static double sayi(String s) {
+        try {
+            return s == null || s.isEmpty() ? Double.NaN : Double.parseDouble(s);
+        } catch (Exception e) {
+            return Double.NaN;
+        }
     }
 
     private static String deger(Map<String, String> v, String k) {
