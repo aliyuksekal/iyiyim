@@ -62,6 +62,7 @@ export default {
         case "POST /sor": return sor(env, ben, govde);
         case "POST /cevap": return cevap(env, ben, govde);
         case "POST /herkese": return herkese(env, ctx, ben, govde);
+        case "POST /deneme": return deneme(env, ctx, ben, govde);
         case "POST /kisi-sil": return kisiSil(env, ben, govde);
         case "POST /hesap-sil": return hesapSil(env, ben);
       }
@@ -259,7 +260,7 @@ function b64url(bayt) {
   return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 function pemdenBayt(pem) {
-  const b = atob(pem.replace(/-----[^-]+-----/g, "").replace(/\s+/g, ""));
+  const b = atob(pem.replace(/\\n/g, "").replace(/-----[^-]+-----/g, "").replace(/\s+/g, ""));
   const a = new Uint8Array(b.length);
   for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i);
   return a.buffer;
@@ -293,37 +294,84 @@ async function googleJetonu(hesap) {
   return googleErisim;
 }
 
-async function bildirimGonder(env, kullanici, veri, omurSaniye) {
-  if (!kullanici || !kullanici.token) return false;
+/** FCM_HESAP'ı okur ve doğrular. Sorun varsa { hata } döner. */
+function hesapOku(env) {
+  if (!env.FCM_HESAP) return { hata: "Sunucuda FCM_HESAP gizli değişkeni yok" };
+  let hesap;
+  try {
+    hesap = JSON.parse(env.FCM_HESAP);
+  } catch (e) {
+    return { hata: "FCM_HESAP geçerli bir JSON değil (eksik ya da bozuk kopyalanmış olabilir)" };
+  }
+  if (hesap && hesap.project_info) {
+    return { hata: "FCM_HESAP'a yanlış dosya yapıştırılmış: bu google-services.json. Firebase > Proje ayarları > Hizmet hesapları > Yeni özel anahtar oluştur dosyası gerekli" };
+  }
+  if (!hesap || hesap.type !== "service_account" || !hesap.private_key || !hesap.client_email || !hesap.project_id) {
+    return { hata: "FCM_HESAP hizmet hesabı dosyası değil ya da eksik (private_key / client_email yok)" };
+  }
+  return { hesap };
+}
+
+/** Tek bir FCM gönderimi; ayrıntılı sonuç döner. */
+async function fcmIstek(env, hesap, token, veri, omurSaniye) {
   const metin = {};
   for (const [k, v] of Object.entries(veri)) metin[k] = String(v);
-  if (!env.FCM_HESAP) {
-    console.log("FCM_HESAP yok, bildirim gönderilmedi:", JSON.stringify(metin));
-    return false;
-  }
   try {
-    const hesap = JSON.parse(env.FCM_HESAP);
     const jeton = await googleJetonu(hesap);
     const r = await fetch(`https://fcm.googleapis.com/v1/projects/${hesap.project_id}/messages:send`, {
       method: "POST",
       headers: { Authorization: "Bearer " + jeton, "Content-Type": "application/json" },
       body: JSON.stringify({
-        message: {
-          token: kullanici.token,
-          data: metin,
-          android: { priority: "HIGH", ttl: omurSaniye + "s" },
-        },
+        message: { token, data: metin, android: { priority: "HIGH", ttl: omurSaniye + "s" } },
       }),
     });
-    if (r.ok) return true;
-    const govde = await r.text();
-    console.error("FCM hatası", r.status, govde);
-    if (r.status === 404 || govde.includes("UNREGISTERED")) {
-      await env.DB.prepare("UPDATE kullanicilar SET token = NULL WHERE id = ?").bind(kullanici.id).run();
-    }
-    return false;
+    if (r.ok) return { ok: true, durum: r.status, metin: "" };
+    return { ok: false, durum: r.status, metin: await r.text() };
   } catch (e) {
-    console.error("Bildirim gönderilemedi", e && e.message);
+    return { ok: false, durum: 0, metin: (e && e.message) || String(e) };
+  }
+}
+
+async function bildirimGonder(env, kullanici, veri, omurSaniye) {
+  if (!kullanici || !kullanici.token) return false;
+  const { hesap, hata } = hesapOku(env);
+  if (hata) {
+    console.error("Bildirim gönderilemedi:", hata);
     return false;
   }
+  const s = await fcmIstek(env, hesap, kullanici.token, veri, omurSaniye);
+  if (s.ok) return true;
+  console.error("FCM hatası", s.durum, s.metin);
+  if (s.durum === 404 || s.metin.includes("UNREGISTERED")) {
+    await env.DB.prepare("UPDATE kullanicilar SET token = NULL WHERE id = ?").bind(kullanici.id).run();
+  }
+  return false;
+}
+
+/** Ayarlar > Bildirimleri dene: zincirin her halkasını tek tek kontrol eder. */
+async function deneme(env, ctx, ben, g) {
+  const rapor = { jeton: !!ben.token, proje: null, gonderim: null, ok: false };
+  const { hesap, hata } = hesapOku(env);
+  if (hata) return json({ ...rapor, gonderim: hata });
+  rapor.proje = hesap.project_id;
+  if (!ben.token) return json({ ...rapor, gonderim: "Bu telefonun bildirim jetonu sunucuya ulaşmamış" });
+  const veri = { tip: "deneme", ad: ben.ad };
+  const gecikme = Math.min(Math.max(parseInt(g.gecikme || 0, 10) || 0, 0), 25);
+  if (gecikme > 0) {
+    // Önce bağlantıyı doğrula, sonra gerçek denemeyi gecikmeli gönder (uygulama kapalıyken test için)
+    try { await googleJetonu(hesap); } catch (e) { return json({ ...rapor, gonderim: "Google girişi başarısız: " + e.message }); }
+    ctx.waitUntil(new Promise((r) => setTimeout(r, gecikme * 1000)).then(() => fcmIstek(env, hesap, ben.token, { ...veri, gecikmeli: "1" }, 600)));
+    return json({ ...rapor, ok: true, gonderim: `${gecikme} saniye sonra gönderilecek` });
+  }
+  const s = await fcmIstek(env, hesap, ben.token, veri, 600);
+  if (s.ok) return json({ ...rapor, ok: true, gonderim: "Gönderildi" });
+  if (s.durum === 404 || s.metin.includes("UNREGISTERED")) {
+    await env.DB.prepare("UPDATE kullanicilar SET token = NULL WHERE id = ?").bind(ben.id).run();
+  }
+  let aciklama = `FCM ${s.durum}: ${s.metin.slice(0, 400)}`;
+  if (s.metin.includes("SENDER_ID_MISMATCH")) aciklama = "Sunucudaki anahtar ile uygulamadaki Firebase projesi farklı (SENDER_ID_MISMATCH)";
+  else if (s.metin.includes("invalid_grant") || s.metin.includes("Invalid JWT")) aciklama = "Hizmet hesabı anahtarı geçersiz ya da silinmiş (invalid_grant). Yeni anahtar oluşturup FCM_HESAP'a yapıştır";
+  else if (s.durum === 403 || s.metin.includes("PERMISSION_DENIED")) aciklama = "Firebase Cloud Messaging API kapalı ya da izin yok (403). Firebase > Proje ayarları > Cloud Messaging'de V1 API'yi etkinleştir";
+  else if (s.metin.includes("UNREGISTERED") || s.durum === 404) aciklama = "Telefonun bildirim jetonu geçersiz. Uygulamayı kapatıp açınca yenilenir";
+  return json({ ...rapor, gonderim: aciklama });
 }

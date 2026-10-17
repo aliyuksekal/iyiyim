@@ -24,6 +24,8 @@
       bildirimAyari: async () => ({}),
       uygulamaAyarlariAc: async () => ({}),
       cevapSirala: async () => ({}),
+      cihaz: async () => ({ marka: "Xiaomi", model: "Redmi Note 12", sdk: 34, surum: "14" }),
+      otomatikBaslatma: async () => ({ ozel: true }),
       alarmKur: async (o) => { console.log("alarmKur", o); return {}; },
       alarmIptal: async () => ({}),
       telefonlar: async () => ({}),
@@ -38,7 +40,8 @@
   const yaz = (k, v) => { try { localStorage.setItem("iyiyim." + k, JSON.stringify(v)); } catch (e) {} };
 
   let kimlik = oku("kimlik", null);                   // {id, sifre, ad}
-  let ayar = Object.assign({ sureDk: 60, tema: "sistem" }, oku("ayar", {}));
+  let ayar = Object.assign({ sureDk: 15, tema: "sistem" }, oku("ayar", {}));
+  if (![15, 30, 60, 120, 240].includes(+ayar.sureDk)) ayar.sureDk = +ayar.sureDk > 120 ? 240 : 15;
   delete ayar.sunucu; // sunucu adresi yalnızca uygulamanın içinden gelir, kullanıcı değiştiremez
   let telefonlar = oku("telefonlar", {});            // {kisiId: "05..."}
   let veri = oku("onbellek", null);                   // son /kisiler cevabı
@@ -200,6 +203,12 @@
       $("#baglanti-uyari").hidden = true;
       alarmlariEsitle();
       ciz();
+      // Bildirim kaçmış olsa bile, uygulama açıkken bekleyen soruyu tam ekran göster
+      const bekleyen = (v.kisiler || []).filter((k) => k.bekleyenSoru && !gosterilenSorular.has(k.bekleyenSoru.id))
+        .sort((p, q) => q.bekleyenSoru.zaman - p.bekleyenSoru.zaman)[0];
+      if (bekleyen && document.visibilityState === "visible" && $("#soru-ekran").hidden) {
+        soruEkraniGoster(bekleyen.bekleyenSoru.id, bekleyen.ad);
+      }
     } catch (e) {
       if (e.durum === 401) { hesabiSifirla(); return; }
       const u = $("#baglanti-uyari");
@@ -267,7 +276,9 @@
     }
   }
 
+  const gosterilenSorular = new Set();
   function soruEkraniGoster(soruId, ad) {
+    gosterilenSorular.add(soruId);
     const e = $("#soru-ekran");
     e.dataset.soru = soruId;
     $("#soru-kimden").innerHTML = `<b>${kacis(ad)}</b> soruyor`;
@@ -490,15 +501,133 @@
     sayfaAc("#sayfa-gizlilik");
   });
 
+  // --- marka rehberi ---
+  let cihazBilgi = null;
+  async function cihazAl() {
+    if (!cihazBilgi) cihazBilgi = await Iyiyim.cihaz().catch(() => ({ marka: "", model: "" }));
+    return cihazBilgi;
+  }
+  function markaGrubu(m) {
+    m = String(m || "").toLowerCase();
+    if (/xiaomi|redmi|poco/.test(m)) return "xiaomi";
+    if (/samsung/.test(m)) return "samsung";
+    if (/oppo|realme|oneplus/.test(m)) return "oppo";
+    if (/vivo|iqoo/.test(m)) return "vivo";
+    if (/huawei|honor/.test(m)) return "huawei";
+    return "diger";
+  }
+  const MARKA_ADIMLARI = {
+    xiaomi: [
+      ["Otomatik başlatma", "İyiyim'in yanındaki anahtarı aç.", "otomatik"],
+      ["Pil tasarrufu", "Pil tasarrufu → <b>Kısıtlama yok</b> seç.", "pil"],
+      ["Diğer izinler", "<b>Arka planda çalışırken açılır pencereler</b> ve <b>Kilit ekranında göster</b> izinlerini aç.", "uygulama"],
+      ["Kilitle", "Son uygulamalar ekranında İyiyim'e basılı tut ve <b>kilit</b> simgesine dokun.", ""],
+    ],
+    samsung: [
+      ["Pil", "Uygulama bilgisi → Pil → <b>Kısıtlanmamış</b> seç.", "uygulama"],
+      ["Uyku listesi", "Ayarlar → Pil → Arka plan kullanım sınırları → <b>Asla uyku moduna geçmeyen uygulamalar</b>'a İyiyim'i ekle.", ""],
+      ["Açılır bildirim", "Bildirimler → Gelen sorular → <b>Açılır pencere olarak göster</b>.", "sesli"],
+    ],
+    oppo: [
+      ["Otomatik başlatma", "İyiyim için otomatik başlatmayı aç.", "otomatik"],
+      ["Pil", "Uygulama bilgisi → Pil kullanımı → <b>Arka planda etkinliğe izin ver</b>.", "uygulama"],
+      ["Kilitle", "Son uygulamalarda İyiyim'in menüsünden <b>Kilitle</b>.", ""],
+    ],
+    vivo: [
+      ["Otomatik başlatma", "İyiyim için otomatik başlatmayı aç.", "otomatik"],
+      ["Arka planda güç", "Pil → <b>Arka planda yüksek güç tüketimi</b> → İyiyim'e izin ver.", "uygulama"],
+      ["Kilitle", "Son uygulamalarda İyiyim'i aşağı çekip kilitle.", ""],
+    ],
+    huawei: [
+      ["Uygulama başlatma", "İyiyim → <b>Manuel yönet</b> → üç anahtarın üçünü de aç.", "otomatik"],
+      ["Pil", "Pil optimizasyonunu İyiyim için kapat.", "pil"],
+    ],
+    diger: [
+      ["Pil", "Uygulama bilgisi → Pil → <b>Kısıtlanmamış</b> seç.", "uygulama"],
+      ["Açılır bildirim", "Gelen sorular için ses ve açılır pencereyi aç.", "sesli"],
+    ],
+  };
+  async function markaRehberi(hedef) {
+    const d = await cihazAl();
+    const grup = markaGrubu(d.marka);
+    const ad = [d.marka, d.model].filter(Boolean).join(" ") || "Telefonun";
+    const adimlar = MARKA_ADIMLARI[grup];
+    const kutu = $(hedef);
+    kutu.innerHTML = `<h3>${kacis(ad)}<small>Bu telefonlarda bildirimlerin arka planda gelmesi için şunları aç:</small></h3>` +
+      adimlar.map((s, i) => `<div class="marka-adim"><span class="no">${i + 1}</span><div><b>${s[0]}</b><br>${s[1]}${s[2] ? `<br><button class="dugme dugme-ikincil" data-marka-izin="${s[2]}">Ayarı aç</button>` : ""}</div></div>`).join("");
+    const alt = $("#marka-alt");
+    if (alt) alt.textContent = ad;
+  }
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-marka-izin]");
+    if (!b) return;
+    const t = b.dataset.markaIzin;
+    if (t === "otomatik") { const r = await Iyiyim.otomatikBaslatma().catch(() => ({})); if (!r.ozel) tost("Uygulama ayarları açıldı. “Otomatik başlatma”yı orada ara."); }
+    else izinIste(t, null);
+  });
+  $("#marka-ac").addEventListener("click", () => { markaRehberi("#ayar-marka"); sayfaAc("#sayfa-marka"); });
+
+  // --- bildirim denemesi ---
+  function kontrolSatiri(durum, baslik, metin) {
+    const isaret = { ok: "✓", hata: "✕", bekle: "…" }[durum];
+    return `<li class="${durum}"><span class="i">${isaret}</span><div><b>${kacis(baslik)}</b>${metin ? `<span>${kacis(metin)}</span>` : ""}</div></li>`;
+  }
+  async function bildirimDene(gecikme) {
+    const liste = $("#deneme-liste");
+    const satirlar = [];
+    const yaz2 = () => (liste.innerHTML = satirlar.join(""));
+    $("#deneme-simdi").disabled = $("#deneme-kapali").disabled = true;
+    try {
+      // 1) izin
+      const iz = await Iyiyim.izinDurumu().catch(() => ({}));
+      satirlar.push(iz.bildirim ? kontrolSatiri("ok", "Bildirim izni açık") : kontrolSatiri("hata", "Bildirim izni kapalı", "Ayarlar → Bildirim izni"));
+      yaz2();
+      // 2) telefon jetonu
+      const j = await Iyiyim.jetonAl().catch((e) => ({ token: "", hata: e.message }));
+      if (!j.token) {
+        satirlar.push(kontrolSatiri("hata", "Telefon bildirim kimliği alamadı", j.hata || "Google Play Hizmetleri güncel mi, internet var mı?"));
+        yaz2();
+        return;
+      }
+      satirlar.push(kontrolSatiri("ok", "Telefonun bildirim kimliği hazır"));
+      yaz2();
+      // 3) sunucuya kaydet
+      await istek("/guncelle", { token: j.token });
+      kimlik.token = j.token; yaz("kimlik", kimlik);
+      satirlar.push(kontrolSatiri("ok", "Sunucuya kaydedildi"));
+      yaz2();
+      // 4) sunucudan gönder
+      const r = await istek("/deneme", { gecikme: gecikme || 0 });
+      if (r.proje && window.IYIYIM_FIREBASE && r.proje !== window.IYIYIM_FIREBASE) {
+        satirlar.push(kontrolSatiri("hata", "Sunucu başka bir Firebase projesine bağlı", `Sunucu: ${r.proje}, uygulama: ${window.IYIYIM_FIREBASE}`));
+      } else if (r.ok) {
+        satirlar.push(kontrolSatiri("ok", gecikme ? "Gönderim planlandı" : "Sunucu bildirimi gönderdi", gecikme ? "Şimdi uygulamadan çık. 15 saniye içinde “Bildirimler çalışıyor ✓” gelmeli." : "Birkaç saniye içinde “Bildirimler çalışıyor ✓” bildirimi gelmeli."));
+        satirlar.push(kontrolSatiri("bekle", "Gelmezse", "Sorun telefonda: yukarıdaki “Telefonuna özel ayarlar”ı yap."));
+      } else {
+        satirlar.push(kontrolSatiri("hata", "Sunucu bildirimi gönderemedi", r.gonderim));
+      }
+      yaz2();
+    } catch (e) {
+      satirlar.push(kontrolSatiri("hata", "Sunucuya ulaşılamadı", e.durum === 404 ? "Sunucu kodu eski: Cloudflare'deki worker.js güncellenmeli" : e.message));
+      yaz2();
+    } finally {
+      $("#deneme-simdi").disabled = $("#deneme-kapali").disabled = false;
+    }
+  }
+  $("#deneme-ac").addEventListener("click", () => { $("#deneme-liste").innerHTML = ""; sayfaAc("#sayfa-deneme"); bildirimDene(0); });
+  $("#deneme-simdi").addEventListener("click", () => bildirimDene(0));
+  $("#deneme-kapali").addEventListener("click", () => bildirimDene(15));
+
   // --- ayarlar ---
   function ayarlariDoldur() {
     $("#ayar-ad").value = kimlik ? kimlik.ad : "";
     secimleriGoster();
     $("#surum").textContent = window.IYIYIM_SURUM || "";
     izinleriGoster();
+    cihazAl().then((d) => { const alt = $("#marka-alt"); if (alt) alt.textContent = [d.marka, d.model].filter(Boolean).join(" ") || "Markana göre gereken ayarlar"; });
   }
   function secimleriGoster() {
-    $$("#ayar-sure button").forEach((b) => b.classList.toggle("secili", +b.dataset.deger === ayar.sureDk));
+    $("#ayar-sure").value = String(ayar.sureDk);
     $$("#ayar-tema button").forEach((b) => b.classList.toggle("secili", b.dataset.deger === ayar.tema));
   }
   async function izinleriGoster() {
@@ -535,10 +664,10 @@
     } catch (e) { tost(e.message); }
     finally { b.disabled = false; }
   });
-  $$("#ayar-sure button").forEach((b) => b.addEventListener("click", () => {
-    ayar.sureDk = +b.dataset.deger; yaz("ayar", ayar); secimleriGoster(); ciz();
-    tost(`Cevap gelmezse alarm: ${b.textContent}`);
-  }));
+  $("#ayar-sure").addEventListener("change", (e) => {
+    ayar.sureDk = +e.target.value; yaz("ayar", ayar); ciz();
+    tost(`Cevap gelmezse alarm: ${e.target.selectedOptions[0].textContent}`);
+  });
   $$("#ayar-tema button").forEach((b) => b.addEventListener("click", () => {
     ayar.tema = b.dataset.deger; yaz("ayar", ayar); temaUygula(); secimleriGoster();
   }));
@@ -618,6 +747,7 @@
       $("#adim-ad").hidden = true;
       $("#adim-izin").hidden = false;
       izinleriGoster();
+      markaRehberi("#karsilama-marka");
     } catch (e) {
       tost(e.message, 4000);
     } finally {
@@ -668,7 +798,7 @@
     yenile();
   }
   setInterval(() => { if (document.visibilityState === "visible" && kimlik) { ciz(); } }, 20000);
-  setInterval(() => { if (document.visibilityState === "visible" && kimlik) yenile(); }, 60000);
+  setInterval(() => { if (document.visibilityState === "visible" && kimlik) yenile(); }, 30000);
   baslat();
 
   // Tarayıcı önizlemesi için dışa açık

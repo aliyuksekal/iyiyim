@@ -271,3 +271,22 @@ a.ayar-satir { color: inherit; text-decoration: none; }
 .ayar-satir em { flex-shrink: 0; }
 .sayfa-alt { position: sticky; bottom: calc(-22px - env(safe-area-inset-bottom, 0px)); margin: 6px -20px calc(-22px - env(safe-area-inset-bottom, 0px)); padding: 12px 20px calc(16px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, var(--yuzey) 75%, transparent); }
 #soru-not { text-align: center; }
+
+/* ---------- açılır seçim, marka rehberi, deneme ---------- */
+.secmeli-kap { position: relative; }
+.secmeli-kap::after { content: ""; position: absolute; right: 18px; top: 50%; width: 10px; height: 10px; border-right: 2.5px solid var(--soluk); border-bottom: 2.5px solid var(--soluk); transform: translateY(-70%) rotate(45deg); pointer-events: none; }
+.secmeli { appearance: none; -webkit-appearance: none; padding-right: 48px; font-weight: 600; cursor: pointer; }
+.marka-kart:empty { display: none; }
+.marka-kart { background: var(--yuzey-2); border: 1px solid var(--cizgi); border-radius: 18px; padding: 16px; display: grid; gap: 12px; }
+.marka-kart h3 { margin: 0; font: 700 17px/1.3 var(--yazi-baslik); }
+.marka-kart h3 small { display: block; font: 500 13px/1.4 var(--yazi-govde); color: var(--soluk); margin-top: 2px; }
+.marka-adim { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; font-size: 15px; line-height: 1.45; }
+.marka-adim .no { width: 28px; height: 28px; border-radius: 50%; background: var(--iyi-zemin); color: var(--iyi); display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+.marka-adim .dugme { margin-top: 8px; min-height: 40px; padding: 8px 14px; font-size: 14px; }
+.ayar-satir.vurgulu em { color: var(--iyi); font-weight: 700; }
+.kontrol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.kontrol li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; background: var(--yuzey-2); border-radius: 14px; padding: 12px 14px; font-size: 15px; line-height: 1.45; }
+.kontrol li b { display: block; }
+.kontrol li span { color: var(--soluk); font-size: 13.5px; word-break: break-word; }
+.kontrol .i { font-weight: 700; }
+.kontrol .ok .i { color: var(--iyi); } .kontrol .hata .i { color: var(--tehlike); } .kontrol .bekle .i { color: var(--bekle); }

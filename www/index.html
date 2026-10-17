@@ -44,6 +44,7 @@
           <div><b>Zamanında alarm</b><span>Cevap gelmezse alarmın tam vaktinde çalması için.</span></div>
           <button class="dugme dugme-kucuk" data-izin="alarm">Aç</button>
         </div>
+        <div class="marka-kart" id="karsilama-marka"></div>
         <button id="izin-bitti" class="dugme dugme-ana">Başla</button>
       </div>
     </div>
@@ -150,8 +151,14 @@
     <input id="ayar-ad" class="girdi" maxlength="40" autocomplete="off">
 
     <p class="etiket">Cevap gelmezse alarm</p>
-    <div class="secim" id="ayar-sure">
-      <button data-deger="15">15 dk</button><button data-deger="30">30 dk</button><button data-deger="60">1 sa</button><button data-deger="120">2 sa</button><button data-deger="180">3 sa</button>
+    <div class="secmeli-kap">
+      <select id="ayar-sure" class="girdi secmeli" aria-label="Cevap gelmezse alarm süresi">
+        <option value="15">15 dakika</option>
+        <option value="30">30 dakika</option>
+        <option value="60">1 saat</option>
+        <option value="120">2 saat</option>
+        <option value="240">4 saat</option>
+      </select>
     </div>
     <p class="ipucu kucuk">Sorduktan sonra bu süre içinde cevap gelmezse telefonun sesli alarm çalar.</p>
 
@@ -162,6 +169,8 @@
 
     <p class="etiket">Telefon ayarları</p>
     <div class="ayar-liste">
+      <button class="ayar-satir vurgulu" id="deneme-ac"><span>Bildirimleri dene<small>Sorun nerede, adım adım kontrol eder</small></span><em>Dene</em></button>
+      <button class="ayar-satir" id="marka-ac"><span>Telefonuna özel ayarlar<small id="marka-alt">Markana göre gereken ayarlar</small></span><em>Aç</em></button>
       <button class="ayar-satir" data-izin="bildirim"><span>Bildirim izni</span><em id="durum-bildirim"></em></button>
       <button class="ayar-satir" data-izin="ustte"><span>Soru ekranda açılsın<small>Diğer uygulamaların üstünde göster</small></span><em id="durum-ustte"></em></button>
       <button class="ayar-satir" data-izin="sesli"><span>Ses ve açılır bildirim<small>“Gelen sorular” için sesi ve açılır pencereyi aç</small></span><em>Ayarla</em></button>
@@ -197,6 +206,24 @@
       <li>Altyapı: Google Firebase (bildirim) ve Cloudflare (sunucu). Bağlantı HTTPS ile şifreli.</li>
     </ul>
     <a class="dugme dugme-ikincil dugme-genis" id="gizlilik-tam" href="#" target="_blank" rel="noopener">Tam metni aç</a>
+  </div>
+
+  <div id="sayfa-deneme" class="alt-sayfa" role="dialog" aria-modal="true" aria-labelledby="deneme-baslik" hidden>
+    <div class="tutamac"></div>
+    <h2 id="deneme-baslik">Bildirimleri dene</h2>
+    <p class="ipucu">Bildirimin telefonuna ulaşana kadar geçtiği her adımı kontrol eder.</p>
+    <ol class="kontrol" id="deneme-liste"></ol>
+    <div class="satir-dugmeler">
+      <button class="dugme dugme-ana" id="deneme-simdi">Şimdi dene</button>
+      <button class="dugme dugme-ikincil" id="deneme-kapali">Kapalıyken dene</button>
+    </div>
+    <p class="ipucu kucuk">“Kapalıyken dene”ye bastıktan sonra uygulamadan çık. 15 saniye içinde bildirim gelmeli.</p>
+  </div>
+
+  <div id="sayfa-marka" class="alt-sayfa" role="dialog" aria-modal="true" aria-labelledby="marka-baslik" hidden>
+    <div class="tutamac"></div>
+    <h2 id="marka-baslik">Telefonuna özel ayarlar</h2>
+    <div class="marka-kart" id="ayar-marka"></div>
   </div>
 
   <div id="tost" class="tost" role="status" hidden></div>

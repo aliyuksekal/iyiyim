@@ -72,6 +72,11 @@ public class MesajServisi extends FirebaseMessagingService {
                 break;
             }
 
+            case "deneme":
+                Ortak.bilgiGoster(this, 777, "Bildirimler çalışıyor ✓",
+                        "1".equals(deger(v, "gecikmeli")) ? "Uygulama kapalıyken de bildirim alabiliyorsun." : "İyiyim bu telefona bildirim gönderebiliyor.");
+                break;
+
             case "eklendi":
                 Ortak.bilgiGoster(this, ("e" + kimden).hashCode(), ad + " seni ekledi", "Artık birbirinize “İyi misin?” diye sorabilirsiniz.");
                 break;

@@ -176,6 +176,54 @@ public class IyiyimPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void cihaz(PluginCall call) {
+        JSObject r = new JSObject();
+        r.put("marka", Build.MANUFACTURER == null ? "" : Build.MANUFACTURER);
+        r.put("model", Build.MODEL == null ? "" : Build.MODEL);
+        r.put("sdk", Build.VERSION.SDK_INT);
+        r.put("surum", Build.VERSION.RELEASE);
+        call.resolve(r);
+    }
+
+    /** Markaya özel "otomatik başlatma" ekranını açmayı dener; olmazsa uygulama ayarlarını açar. */
+    @PluginMethod
+    public void otomatikBaslatma(PluginCall call) {
+        Context c = getContext();
+        String[][] adaylar = {
+                {"com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"},
+                {"com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity"},
+                {"com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity"},
+                {"com.oplus.safecenter", "com.oplus.safecenter.permission.startup.StartupAppListActivity"},
+                {"com.oppo.safe", "com.oppo.safe.permission.startup.StartupAppListActivity"},
+                {"com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"},
+                {"com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity"},
+                {"com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"},
+                {"com.huawei.systemmanager", "com.huawei.systemmanager.optimize.process.ProtectActivity"},
+                {"com.hihonor.systemmanager", "com.hihonor.systemmanager.startupmgr.ui.StartupNormalAppListActivity"},
+                {"com.letv.android.letvsafe", "com.letv.android.letvsafe.AutobootManageActivity"},
+                {"com.asus.mobilemanager", "com.asus.mobilemanager.MainActivity"},
+        };
+        String marka = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER.toLowerCase();
+        boolean acildi = false;
+        if (!marka.contains("samsung") && !marka.contains("google")) {
+            for (String[] a : adaylar) {
+                try {
+                    Intent i = new Intent();
+                    i.setComponent(new android.content.ComponentName(a[0], a[1]));
+                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    c.startActivity(i);
+                    acildi = true;
+                    break;
+                } catch (Exception ignored) {}
+            }
+        }
+        if (!acildi) uygulamaAyarlari(c);
+        JSObject r = new JSObject();
+        r.put("ozel", acildi);
+        call.resolve(r);
+    }
+
+    @PluginMethod
     public void uygulamaAyarlariAc(PluginCall call) {
         uygulamaAyarlari(getContext());
         call.resolve();
