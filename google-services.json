@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "175750670728",
+    "project_id": "iyiyim-616f2",
+    "storage_bucket": "iyiyim-616f2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:175750670728:android:35e73e6210b58205e0323d",
+        "android_client_info": {
+          "package_name": "com.matali.iyiyim"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBS_BBrKj9HlBJqcJwyujmMSEdTy0iq0No"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
