@@ -42,6 +42,8 @@ public class MesajServisi extends FirebaseMessagingService {
         switch (tip) {
             case "soru":
                 Ortak.soruGoster(this, soruId, ad, null);
+                // Uygulama açık değilse soru ekranını diğer uygulamaların üstünde aç
+                if (!IyiyimPlugin.onPlandaMi()) Ortak.soruEkraniAc(this, soruId, ad);
                 break;
 
             case "cevap": {

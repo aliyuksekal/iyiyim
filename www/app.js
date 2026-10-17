@@ -17,9 +17,13 @@
       ayarla: async () => ({}),
       jetonAl: async () => ({ token: "" }),
       bildirimIzni: async () => ({ durum: "granted" }),
-      izinDurumu: async () => ({ bildirim: true, tamAlarm: true, pilMuaf: false, sdk: 34 }),
+      izinDurumu: async () => ({ bildirim: true, tamAlarm: true, pilMuaf: false, ustte: false, sdk: 34 }),
       pilAyari: async () => ({}),
       alarmAyari: async () => ({}),
+      usteAyari: async () => ({}),
+      bildirimAyari: async () => ({}),
+      uygulamaAyarlariAc: async () => ({}),
+      cevapSirala: async () => ({}),
       alarmKur: async (o) => { console.log("alarmKur", o); return {}; },
       alarmIptal: async () => ({}),
       telefonlar: async () => ({}),
@@ -34,13 +38,14 @@
   const yaz = (k, v) => { try { localStorage.setItem("iyiyim." + k, JSON.stringify(v)); } catch (e) {} };
 
   let kimlik = oku("kimlik", null);                   // {id, sifre, ad}
-  let ayar = Object.assign({ sureDk: 60, tema: "sistem", sunucu: "" }, oku("ayar", {}));
+  let ayar = Object.assign({ sureDk: 60, tema: "sistem" }, oku("ayar", {}));
+  delete ayar.sunucu; // sunucu adresi yalnızca uygulamanın içinden gelir, kullanıcı değiştiremez
   let telefonlar = oku("telefonlar", {});            // {kisiId: "05..."}
   let veri = oku("onbellek", null);                   // son /kisiler cevabı
   let saatFarki = 0;                                  // sunucu - yerel
   let kurulanAlarmlar = oku("alarmlar", {});          // {soruId: true}
 
-  const sunucu = () => (ayar.sunucu || window.IYIYIM_SUNUCU || "").replace(/\/+$/, "");
+  const sunucu = () => (window.IYIYIM_SUNUCU || "").replace(/\/+$/, "");
   const simdi = () => Date.now() + saatFarki;
 
   // ---------- kısayollar ----------
@@ -59,7 +64,7 @@
 
   // ---------- sunucu ----------
   async function istek(yol, govde, yontem) {
-    if (!sunucu() || sunucu().includes("KULLANICI")) throw new Error("Sunucu adresi ayarlanmamış. Ayarlar > Gelişmiş");
+    if (!sunucu() || sunucu().includes("KULLANICI")) throw new Error("Sunucu adresi ayarlanmamış");
     const basliklar = { "Content-Type": "application/json" };
     if (kimlik) { basliklar["X-Id"] = kimlik.id; basliklar["X-Sifre"] = kimlik.sifre; }
     let r;
@@ -266,6 +271,7 @@
     const e = $("#soru-ekran");
     e.dataset.soru = soruId;
     $("#soru-kimden").innerHTML = `<b>${kacis(ad)}</b> soruyor`;
+    $("#soru-not").textContent = `Cevabın ${ad} kişisine hemen iletilir.`;
     e.hidden = false;
   }
 
@@ -487,11 +493,13 @@
   // --- ayarlar ---
   function ayarlariDoldur() {
     $("#ayar-ad").value = kimlik ? kimlik.ad : "";
-    $("#ayar-sunucu").value = sunucu();
-    $$("#ayar-sure button").forEach((b) => b.classList.toggle("secili", +b.dataset.deger === ayar.sureDk));
-    $$("#ayar-tema button").forEach((b) => b.classList.toggle("secili", b.dataset.deger === ayar.tema));
+    secimleriGoster();
     $("#surum").textContent = window.IYIYIM_SURUM || "";
     izinleriGoster();
+  }
+  function secimleriGoster() {
+    $$("#ayar-sure button").forEach((b) => b.classList.toggle("secili", +b.dataset.deger === ayar.sureDk));
+    $$("#ayar-tema button").forEach((b) => b.classList.toggle("secili", b.dataset.deger === ayar.tema));
   }
   async function izinleriGoster() {
     try {
@@ -501,36 +509,39 @@
       db.className = d.bildirim ? "tamam" : "eksik";
       da.textContent = d.tamAlarm ? "Açık" : "Kapalı";
       da.className = d.tamAlarm ? "tamam" : "eksik";
+      const du = $("#durum-ustte");
+      du.textContent = d.ustte ? "Açık" : "Kapalı";
+      du.className = d.ustte ? "tamam" : "eksik";
       $("#ayar-alarm-satir").hidden = d.sdk < 31;
       $("#izin-alarm-satir").hidden = d.sdk < 31;
     } catch (e) {}
   }
   $("#ayarlar-ac").addEventListener("click", () => { ayarlariDoldur(); sayfaAc("#sayfa-ayar"); });
-  $("#ayar-ad-kaydet").addEventListener("click", async () => {
+  $("#ayar-kaydet").addEventListener("click", async () => {
+    const b = $("#ayar-kaydet");
     const ad = $("#ayar-ad").value.trim();
-    if (!ad) { tost("Ad boş olamaz"); return; }
+    if (!ad) { tost("Ad boş olamaz"); $("#ayar-ad").focus(); return; }
+    b.disabled = true;
     try {
-      const v = await istek("/guncelle", { ad });
-      kimlik.ad = v.ad;
-      yaz("kimlik", kimlik);
-      tost("Adın güncellendi");
+      if (kimlik && ad !== kimlik.ad) {
+        const v = await istek("/guncelle", { ad });
+        kimlik.ad = v.ad;
+        yaz("kimlik", kimlik);
+      }
+      yaz("ayar", ayar);
+      sayfaKapat();
+      tost("Ayarlar kaydedildi");
       ciz();
     } catch (e) { tost(e.message); }
+    finally { b.disabled = false; }
   });
   $$("#ayar-sure button").forEach((b) => b.addEventListener("click", () => {
-    ayar.sureDk = +b.dataset.deger; yaz("ayar", ayar); ayarlariDoldur(); ciz();
+    ayar.sureDk = +b.dataset.deger; yaz("ayar", ayar); secimleriGoster(); ciz();
+    tost(`Cevap gelmezse alarm: ${b.textContent}`);
   }));
   $$("#ayar-tema button").forEach((b) => b.addEventListener("click", () => {
-    ayar.tema = b.dataset.deger; yaz("ayar", ayar); temaUygula(); ayarlariDoldur();
+    ayar.tema = b.dataset.deger; yaz("ayar", ayar); temaUygula(); secimleriGoster();
   }));
-  $("#ayar-sunucu-kaydet").addEventListener("click", async () => {
-    ayar.sunucu = $("#ayar-sunucu").value.trim();
-    yaz("ayar", ayar);
-    await yerelAyarla();
-    tost("Sunucu kaydedildi");
-    if (!kimlik) return;
-    yenile(false);
-  });
   let silOnay = false;
   $("#hesap-sil").addEventListener("click", async () => {
     const b = $("#hesap-sil");
@@ -558,6 +569,12 @@
         await Iyiyim.pilAyari();
       } else if (tur === "alarm") {
         await Iyiyim.alarmAyari();
+      } else if (tur === "ustte") {
+        await Iyiyim.usteAyari();
+      } else if (tur === "sesli") {
+        await Iyiyim.bildirimAyari();
+      } else if (tur === "uygulama") {
+        await Iyiyim.uygulamaAyarlariAc();
       }
     } catch (e) { tost("Ayar açılamadı"); }
     setTimeout(izinleriGoster, 600);
@@ -579,7 +596,6 @@
     cevapla(kutu.dataset.soru, b.dataset.cevap).finally(() => $$("#gelen-sorular button").forEach((x) => (x.disabled = false)));
   });
   $$("#soru-ekran [data-cevap]").forEach((b) => b.addEventListener("click", () => cevapla($("#soru-ekran").dataset.soru, b.dataset.cevap)));
-  $("#soru-kapat").addEventListener("click", () => { $("#soru-ekran").hidden = true; ciz(); });
 
   // ---------- karşılama ----------
   function goster(ekran) {
@@ -631,7 +647,7 @@
   // ---------- geri tuşu ----------
   if (UygulamaP) {
     UygulamaP.addListener("backButton", () => {
-      if (!$("#soru-ekran").hidden) { $("#soru-ekran").hidden = true; return; }
+      if (!$("#soru-ekran").hidden) { tost("Önce bir cevap seç"); return; }
       if (acikSayfa) { sayfaKapat(); return; }
       UygulamaP.minimizeApp ? UygulamaP.minimizeApp() : UygulamaP.exitApp();
     });

@@ -62,6 +62,10 @@ public class IyiyimPlugin extends Plugin {
         if (ornek == this) ornek = null;
     }
 
+    static boolean onPlandaMi() {
+        return ornek != null && onPlanda;
+    }
+
     /** Uygulama açıksa olayı doğrudan arayüze iletir; iletemezse false döner (olay kuyruğa alınır). */
     static boolean olayYay(JSONObject o) {
         IyiyimPlugin p = ornek;
@@ -132,8 +136,49 @@ public class IyiyimPlugin extends Plugin {
         r.put("tamAlarm", tam);
         PowerManager pm = (PowerManager) c.getSystemService(Context.POWER_SERVICE);
         r.put("pilMuaf", pm != null && pm.isIgnoringBatteryOptimizations(c.getPackageName()));
+        r.put("ustte", Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(c));
         r.put("sdk", Build.VERSION.SDK_INT);
         call.resolve(r);
+    }
+
+    @PluginMethod
+    public void usteAyari(PluginCall call) {
+        Context c = getContext();
+        try {
+            Intent i = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + c.getPackageName()));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            c.startActivity(i);
+        } catch (Exception e) {
+            uygulamaAyarlari(c);
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void bildirimAyari(PluginCall call) {
+        Context c = getContext();
+        Ortak.kanallariKur(c);
+        try {
+            Intent i;
+            if (Build.VERSION.SDK_INT >= 26) {
+                i = new Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS);
+                i.putExtra(Settings.EXTRA_APP_PACKAGE, c.getPackageName());
+                i.putExtra(Settings.EXTRA_CHANNEL_ID, Ortak.KANAL_SORU);
+            } else {
+                i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + c.getPackageName()));
+            }
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            c.startActivity(i);
+        } catch (Exception e) {
+            uygulamaAyarlari(c);
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void uygulamaAyarlariAc(PluginCall call) {
+        uygulamaAyarlari(getContext());
+        call.resolve();
     }
 
     @PluginMethod

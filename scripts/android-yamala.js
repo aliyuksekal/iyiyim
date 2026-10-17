@@ -56,6 +56,7 @@ const izinler = [
   "android.permission.RECEIVE_BOOT_COMPLETED",
   "android.permission.VIBRATE",
   "android.permission.WAKE_LOCK",
+  "android.permission.SYSTEM_ALERT_WINDOW",
 ];
 const eklenecekIzin = izinler
   .filter((i) => !m.includes(`"${i}"`))
@@ -64,6 +65,16 @@ const eklenecekIzin = izinler
 if (eklenecekIzin) m = m.replace(/<application/, eklenecekIzin + "\n\n    <application");
 
 const bilesenler = `
+        <activity
+            android:name=".SoruActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.matali.iyiyim.soru"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:screenOrientation="portrait"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
         <service android:name=".MesajServisi" android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
@@ -79,7 +90,7 @@ const bilesenler = `
             </intent-filter>
         </receiver>
         <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_iyiyim" />
-        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="sorular" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="soru_v2" />
 `;
 if (!m.includes(".MesajServisi")) m = m.replace(/<\/application>/, bilesenler + "    </application>");
 fs.writeFileSync(MANIFEST, m);

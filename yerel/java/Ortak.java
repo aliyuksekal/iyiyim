@@ -36,7 +36,7 @@ public final class Ortak {
     private Ortak() {}
 
     static final String TERCIH = "iyiyim";
-    static final String KANAL_SORU = "sorular";
+    static final String KANAL_SORU = "soru_v2";
     static final String KANAL_CEVAP = "cevaplar";
     static final String KANAL_ALARM = "alarm_v1";
     static final String KANAL_DURUM = "durum";
@@ -52,9 +52,21 @@ public final class Ortak {
         NotificationManager nm = c.getSystemService(NotificationManager.class);
         if (nm == null) return;
 
+        // Eski sürümün sessiz/kısık kanalını kaldır (kanal ayarları sonradan değiştirilemez)
+        try { nm.deleteNotificationChannel("sorular"); } catch (Exception ignored) {}
+
         NotificationChannel soru = new NotificationChannel(KANAL_SORU, "Gelen sorular", NotificationManager.IMPORTANCE_HIGH);
-        soru.setDescription("Biri sana “İyi misin?” diye sorduğunda");
+        soru.setDescription("Biri sana “İyi misin?” diye sorduğunda: sesli, ekranda açılır");
+        Uri soruSesi = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+        if (soruSesi == null) soruSesi = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
+        soru.setSound(soruSesi, new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build());
         soru.enableVibration(true);
+        soru.setVibrationPattern(new long[]{0, 500, 250, 500, 250, 500});
+        soru.enableLights(true);
+        soru.setLightColor(RENK);
         soru.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
 
         NotificationChannel cevap = new NotificationChannel(KANAL_CEVAP, "Cevaplar", NotificationManager.IMPORTANCE_HIGH);
@@ -120,6 +132,29 @@ public final class Ortak {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
+    static PendingIntent soruEkraniNiyeti(Context c, String soruId, String ad) {
+        Intent i = new Intent(c, SoruActivity.class);
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        i.putExtra("soruId", soruId);
+        i.putExtra("ad", ad);
+        return PendingIntent.getActivity(c, noSoru(soruId), i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    /** İzin varsa soru ekranını diğer uygulamaların ve kilit ekranının üstünde açar. */
+    static boolean soruEkraniAc(Context c, String soruId, String ad) {
+        if (Build.VERSION.SDK_INT >= 23 && !android.provider.Settings.canDrawOverlays(c)) return false;
+        try {
+            Intent i = new Intent(c, SoruActivity.class);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            i.putExtra("soruId", soruId);
+            i.putExtra("ad", ad);
+            c.startActivity(i);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     static void soruGoster(Context c, String soruId, String ad, String altMetin) {
         NotificationCompat.Builder b = new NotificationCompat.Builder(c, KANAL_SORU)
                 .setSmallIcon(R.drawable.ic_stat_iyiyim)
@@ -131,11 +166,16 @@ public final class Ortak {
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setAutoCancel(true)
                 .setTimeoutAfter(6L * 60 * 60 * 1000)
-                .setContentIntent(uygulamaAc(c, noSoru(soruId)))
+                .setContentIntent(soruEkraniNiyeti(c, soruId, ad))
                 .addAction(0, "İyiyim", cevapNiyeti(c, soruId, "iyi", ad))
                 .addAction(0, "Sonra ararım", cevapNiyeti(c, soruId, "sonra", ad))
                 .addAction(0, "Yardım lazım", cevapNiyeti(c, soruId, "yardim", ad));
-        goster(c, noSoru(soruId), b.build());
+        if (Build.VERSION.SDK_INT < 26) {
+            b.setDefaults(Notification.DEFAULT_ALL);
+        }
+        Notification n = b.build();
+        if (altMetin == null) n.flags |= Notification.FLAG_INSISTENT; // cevap verilene ya da dokunulana kadar ses tekrar eder
+        goster(c, noSoru(soruId), n);
     }
 
     static void durumGoster(Context c, int no, String baslik, String metin, long zamanAsimi) {

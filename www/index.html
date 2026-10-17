@@ -32,6 +32,10 @@
           <div><b>Bildirimler</b><span>Soru ve cevapları görebilmen için şart.</span></div>
           <button class="dugme dugme-kucuk" data-izin="bildirim">İzin ver</button>
         </div>
+        <div class="izin-satir" id="izin-ustte-satir">
+          <div><b>Ekranda açılsın</b><span>Biri sorduğunda soru, açık olan uygulamanın üstünde belirsin. “İyiyim'i diğer uygulamaların üstünde göster”i aç.</span></div>
+          <button class="dugme dugme-kucuk" data-izin="ustte">Aç</button>
+        </div>
         <div class="izin-satir">
           <div><b>Pil kısıtlaması</b><span>Bazı telefonlar bildirimleri geciktirir. İyiyim'i “kısıtlama yok” yap.</span></div>
           <button class="dugme dugme-kucuk" data-izin="pil">Aç</button>
@@ -93,7 +97,7 @@
         <button class="dugme cevap-sonra" data-cevap="sonra">Sonra ararım</button>
         <button class="dugme cevap-yardim" data-cevap="yardim">Yardım lazım</button>
       </div>
-      <button class="metin-dugme" id="soru-kapat">Şimdi değil</button>
+      <p class="ipucu kucuk" id="soru-not">Cevabın hemen iletilir.</p>
     </div>
   </div>
 
@@ -143,10 +147,7 @@
     <h2 id="ayar-baslik">Ayarlar</h2>
 
     <label for="ayar-ad" class="etiket">Adın</label>
-    <div class="satir-girdi">
-      <input id="ayar-ad" class="girdi" maxlength="40">
-      <button class="dugme dugme-ikincil" id="ayar-ad-kaydet">Kaydet</button>
-    </div>
+    <input id="ayar-ad" class="girdi" maxlength="40" autocomplete="off">
 
     <p class="etiket">Cevap gelmezse alarm</p>
     <div class="secim" id="ayar-sure">
@@ -162,8 +163,11 @@
     <p class="etiket">Telefon ayarları</p>
     <div class="ayar-liste">
       <button class="ayar-satir" data-izin="bildirim"><span>Bildirim izni</span><em id="durum-bildirim"></em></button>
+      <button class="ayar-satir" data-izin="ustte"><span>Soru ekranda açılsın<small>Diğer uygulamaların üstünde göster</small></span><em id="durum-ustte"></em></button>
+      <button class="ayar-satir" data-izin="sesli"><span>Ses ve açılır bildirim<small>“Gelen sorular” için sesi ve açılır pencereyi aç</small></span><em>Ayarla</em></button>
       <button class="ayar-satir" data-izin="pil"><span>Pil kısıtlamasını kaldır</span><em>Aç</em></button>
       <button class="ayar-satir" data-izin="alarm" id="ayar-alarm-satir"><span>Zamanında alarm izni</span><em id="durum-alarm"></em></button>
+      <button class="ayar-satir" data-izin="uygulama"><span>Diğer izinler<small>Xiaomi, Oppo, Vivo: “Arka planda açılır pencere” iznini aç</small></span><em>Aç</em></button>
     </div>
 
     <p class="etiket">Hakkında</p>
@@ -172,15 +176,11 @@
       <a class="ayar-satir" href="mailto:matali.truz@gmail.com?subject=İyiyim"><span>Bize yaz</span><em>matali.truz@gmail.com</em></a>
     </div>
 
-    <details class="gelismis">
-      <summary>Gelişmiş</summary>
-      <label for="ayar-sunucu" class="etiket">Sunucu adresi</label>
-      <div class="satir-girdi">
-        <input id="ayar-sunucu" class="girdi" type="url" inputmode="url" spellcheck="false" placeholder="https://iyiyim.xxx.workers.dev">
-        <button class="dugme dugme-ikincil" id="ayar-sunucu-kaydet">Kaydet</button>
-      </div>
-      <button class="metin-dugme tehlike" id="hesap-sil">Hesabımı sil</button>
-    </details>
+    <button class="metin-dugme tehlike" id="hesap-sil">Hesabımı sil</button>
+
+    <div class="sayfa-alt">
+      <button class="dugme dugme-ana dugme-genis" id="ayar-kaydet">Kaydet</button>
+    </div>
 
     <p class="imza">matali · İyiyim <span id="surum"></span></p>
   </div>

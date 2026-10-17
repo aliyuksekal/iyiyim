@@ -265,3 +265,9 @@ svg { display: block; }
 a.dugme { text-decoration: none; }
 a.ayar-satir { color: inherit; text-decoration: none; }
 .ayar-satir em { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+.ayar-satir span { display: grid; gap: 2px; min-width: 0; }
+.ayar-satir small { color: var(--soluk); font-size: 12.5px; line-height: 1.35; }
+.ayar-satir em { flex-shrink: 0; }
+.sayfa-alt { position: sticky; bottom: calc(-22px - env(safe-area-inset-bottom, 0px)); margin: 6px -20px calc(-22px - env(safe-area-inset-bottom, 0px)); padding: 12px 20px calc(16px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, var(--yuzey) 75%, transparent); }
+#soru-not { text-align: center; }
