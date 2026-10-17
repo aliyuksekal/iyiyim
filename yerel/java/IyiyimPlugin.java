@@ -289,13 +289,95 @@ public class IyiyimPlugin extends Plugin {
         }
     }
 
-    // ---------------- geliştiriciyi destekle ----------------
+    // ---------------- Google Play ödemeleri (İyiyim Tam, hediye, destek) ----------------
+    private static java.util.List<String> urunListesi(PluginCall call) {
+        java.util.List<String> l = new java.util.ArrayList<>();
+        JSArray a = call.getArray("urunler");
+        try {
+            if (a != null) for (int i = 0; i < a.length(); i++) l.add(a.getString(i));
+        } catch (Exception ignored) {}
+        if (l.isEmpty()) {
+            l.add(Destek.TAM);
+            l.add(Destek.HEDIYE);
+            l.add(Destek.URUN);
+        }
+        return l;
+    }
+
     @PluginMethod
-    public void destekFiyati(PluginCall call) {
-        Destek.fiyatAl(getContext(), (durum, fiyat, mesaj) -> {
+    public void urunFiyatlari(PluginCall call) {
+        Destek.fiyatlar(getContext(), urunListesi(call), (fiyatlar, mesaj) -> {
+            JSObject r = new JSObject();
+            try {
+                r.put("fiyatlar", JSObject.fromJSONObject(fiyatlar));
+            } catch (Exception e) {
+                r.put("fiyatlar", new JSObject());
+            }
+            r.put("mesaj", mesaj);
+            call.resolve(r);
+        });
+    }
+
+    /** urun: iyiyim_tam | iyiyim_hediye | destek_149 ; hesap: sunucudaki hesap kimliği */
+    @PluginMethod
+    public void satinAl(PluginCall call) {
+        if (getActivity() == null) {
+            call.reject("Ekran hazır değil");
+            return;
+        }
+        String urun = call.getString("urun", Destek.TAM);
+        Destek.satinAl(getActivity(), urun, call.getString("hesap", ""), (durum, token, mesaj) -> {
             JSObject r = new JSObject();
             r.put("durum", durum);
-            r.put("fiyat", fiyat);
+            r.put("token", token);
+            r.put("mesaj", mesaj);
+            call.resolve(r);
+        });
+    }
+
+    /** Hesabın Play'deki satın almaları: { iyiyim_tam: token?, iyiyim_hediye_liste: [token] } */
+    @PluginMethod
+    public void sahipOlunanlar(PluginCall call) {
+        Destek.sahipOlunanlar(getContext(), o -> {
+            try {
+                call.resolve(JSObject.fromJSONObject(o));
+            } catch (Exception e) {
+                call.resolve(new JSObject());
+            }
+        });
+    }
+
+    /** Sunucu hediyeyi kabul ettikten sonra hediye satın almasını tüketir (tekrar alınabilsin). */
+    @PluginMethod
+    public void tuket(PluginCall call) {
+        String token = call.getString("token", "");
+        Destek.sahipOlunanlar(getContext(), o -> {
+            Destek.tuket(token);
+            call.resolve();
+        });
+    }
+
+    /** Widget'taki İyiyim düğmesine Tam olmadan basıldıysa, uygulama açılınca Tam ekranı gösterilsin. */
+    @PluginMethod
+    public void tamIstegi(PluginCall call) {
+        android.content.SharedPreferences t = Ortak.tercih(getContext());
+        boolean v = t.getBoolean("tam_goster", false);
+        if (v) t.edit().remove("tam_goster").apply();
+        JSObject r = new JSObject();
+        r.put("goster", v);
+        call.resolve(r);
+    }
+
+    // Eski adlar (geriye uyumluluk)
+    @PluginMethod
+    public void destekFiyati(PluginCall call) {
+        java.util.List<String> l = new java.util.ArrayList<>();
+        l.add(Destek.URUN);
+        Destek.fiyatlar(getContext(), l, (fiyatlar, mesaj) -> {
+            JSObject r = new JSObject();
+            String f = fiyatlar.optString(Destek.URUN, "");
+            r.put("durum", f.isEmpty() ? "hata" : "tamam");
+            r.put("fiyat", f);
             r.put("mesaj", mesaj);
             call.resolve(r);
         });
@@ -307,7 +389,7 @@ public class IyiyimPlugin extends Plugin {
             call.reject("Ekran hazır değil");
             return;
         }
-        Destek.baslat(getActivity(), (durum, fiyat, mesaj) -> {
+        Destek.satinAl(getActivity(), Destek.URUN, "", (durum, token, mesaj) -> {
             JSObject r = new JSObject();
             r.put("durum", durum);
             r.put("mesaj", mesaj);

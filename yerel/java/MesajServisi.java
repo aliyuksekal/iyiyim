@@ -91,6 +91,16 @@ public class MesajServisi extends FirebaseMessagingService {
                 Ortak.bilgiGoster(this, ("e" + kimden).hashCode(), ad + " seni ekledi", "Artık birbirinize “İyi misin?” diye sorabilirsiniz.");
                 break;
 
+            case "hediye":
+                Ortak.bilgiGoster(this, ("h" + kimden).hashCode(), ad + " sana İyiyim Tam hediye etti 🎁",
+                        "Artık sen de yakınlarına “İyi mi?” diye sorabilir, herkese “İyiyim” diyebilirsin.");
+                break;
+
+            case "hediyeKullanildi":
+                Ortak.bilgiGoster(this, ("k" + kimden).hashCode(), "Hediyen ulaştı 🎁",
+                        ad + " hediye kodunu kullandı. Artık İyiyim Tam onun da elinde.");
+                break;
+
             default:
                 return;
         }

@@ -15,24 +15,35 @@ import com.android.billingclient.api.Purchase;
 import com.android.billingclient.api.QueryProductDetailsParams;
 import com.android.billingclient.api.QueryPurchasesParams;
 
-import java.util.Collections;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * "Geliştiriciyi destekle": Google Play üzerinden 149,99 ₺'lik isteğe bağlı destek.
- * Ürün tüketilebilir olduğu için isteyen birden fazla kez destek olabilir.
- * Play Console'da "destek_149" kimlikli, 149,99 TRY fiyatlı bir uygulama içi ürün oluşturulmalı.
+ * Google Play ödemeleri.
+ *  - iyiyim_tam     : İyiyim Tam (tek seferlik, kalıcı) → onaylanır (acknowledge), tüketilmez
+ *  - iyiyim_hediye  : Hediye İyiyim Tam (tekrar alınabilir) → sunucu kabul edince tüketilir
+ *  - destek_149     : Geliştiriciyi destekle (tekrar alınabilir) → hemen tüketilir
  */
 final class Destek {
     static final String URUN = "destek_149";
+    static final String TAM = "iyiyim_tam";
+    static final String HEDIYE = "iyiyim_hediye";
 
     interface Sonuc {
-        /** durum: "tesekkurler" | "iptal" | "bekliyor" | "hata"; mesaj: kullanıcıya gösterilecek açıklama */
-        void bitti(String durum, String fiyat, String mesaj);
+        /** durum: "tamam" | "iptal" | "bekliyor" | "hata"; token: satın alma jetonu; mesaj: açıklama */
+        void bitti(String durum, String token, String mesaj);
+    }
+
+    interface Fiyatlar {
+        void geldi(JSONObject fiyatlar, String mesaj);
     }
 
     private static BillingClient istemci;
     private static Sonuc bekleyen;
+    private static String bekleyenUrun;
 
     private static synchronized BillingClient istemci(Context c) {
         if (istemci == null) {
@@ -44,7 +55,11 @@ final class Destek {
         return istemci;
     }
 
-    private static void baglan(Context c, Runnable hazir, Sonuc hata) {
+    private interface Hata {
+        void oldu(String mesaj);
+    }
+
+    private static void baglan(Context c, Runnable hazir, Hata hata) {
         BillingClient b = istemci(c);
         if (b.isReady()) {
             hazir.run();
@@ -54,36 +69,33 @@ final class Destek {
             @Override
             public void onBillingSetupFinished(BillingResult r) {
                 if (r.getResponseCode() == BillingClient.BillingResponseCode.OK) hazir.run();
-                else hata.bitti("hata", "", aciklama(r));
+                else hata.oldu(aciklama(r));
             }
 
             @Override
-            public void onBillingServiceDisconnected() {
-                // bir sonraki istekte yeniden bağlanılır
-            }
+            public void onBillingServiceDisconnected() { }
         });
     }
 
-    private static void urunAl(Context c, UrunSonuc s, Sonuc hata) {
-        baglan(c, () -> {
-            QueryProductDetailsParams p = QueryProductDetailsParams.newBuilder()
-                    .setProductList(Collections.singletonList(QueryProductDetailsParams.Product.newBuilder()
-                            .setProductId(URUN)
-                            .setProductType(BillingClient.ProductType.INAPP)
-                            .build()))
-                    .build();
-            istemci(c).queryProductDetailsAsync(p, (r, liste) -> {
-                if (r.getResponseCode() != BillingClient.BillingResponseCode.OK || liste == null || liste.isEmpty()) {
-                    hata.bitti("hata", "", "Destek seçeneği şu an Play Store'dan alınamadı. Uygulama Play Store'dan kurulduğunda çalışır.");
-                    return;
-                }
-                s.geldi(liste.get(0));
-            });
-        }, hata);
+    private interface UrunlerSonuc {
+        void geldi(List<ProductDetails> urunler);
     }
 
-    private interface UrunSonuc {
-        void geldi(ProductDetails urun);
+    private static void urunleriAl(Context c, List<String> kimlikler, UrunlerSonuc s, Hata hata) {
+        baglan(c, () -> {
+            List<QueryProductDetailsParams.Product> l = new ArrayList<>();
+            for (String k : kimlikler) {
+                l.add(QueryProductDetailsParams.Product.newBuilder()
+                        .setProductId(k).setProductType(BillingClient.ProductType.INAPP).build());
+            }
+            istemci(c).queryProductDetailsAsync(QueryProductDetailsParams.newBuilder().setProductList(l).build(), (r, liste) -> {
+                if (r.getResponseCode() != BillingClient.BillingResponseCode.OK || liste == null || liste.isEmpty()) {
+                    hata.oldu("Ürünler şu an Play Store'dan alınamadı. Uygulama Play Store'dan kurulduğunda çalışır.");
+                    return;
+                }
+                s.geldi(liste);
+            });
+        }, hata);
     }
 
     static String fiyat(ProductDetails u) {
@@ -91,46 +103,70 @@ final class Destek {
         return d != null ? d.getFormattedPrice() : "";
     }
 
-    /** Fiyatı Play'den okur; yarım kalmış destekleri de tamamlar. */
-    static void fiyatAl(Context c, Sonuc sonuc) {
-        urunAl(c, u -> {
+    /** Ürün fiyatlarını Play'den okur; yarım kalmış destek satın almalarını tamamlar. */
+    static void fiyatlar(Context c, List<String> kimlikler, Fiyatlar sonuc) {
+        urunleriAl(c, kimlikler, liste -> {
             yarimKalanlariTamamla(c);
-            sonuc.bitti("hazir", fiyat(u), "");
-        }, sonuc);
+            JSONObject o = new JSONObject();
+            try {
+                for (ProductDetails u : liste) o.put(u.getProductId(), fiyat(u));
+            } catch (Exception ignored) {}
+            sonuc.geldi(o, "");
+        }, m -> sonuc.geldi(new JSONObject(), m));
     }
 
-    static void baslat(Activity a, Sonuc sonuc) {
-        urunAl(a, u -> a.runOnUiThread(() -> {
+    static void satinAl(Activity a, String urun, String hesap, Sonuc sonuc) {
+        java.util.List<String> l = new ArrayList<>();
+        l.add(urun);
+        urunleriAl(a, l, liste -> a.runOnUiThread(() -> {
             bekleyen = sonuc;
-            BillingFlowParams p = BillingFlowParams.newBuilder()
-                    .setProductDetailsParamsList(Collections.singletonList(
-                            BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(u).build()))
-                    .build();
+            bekleyenUrun = urun;
+            BillingFlowParams.Builder pb = BillingFlowParams.newBuilder()
+                    .setProductDetailsParamsList(java.util.Collections.singletonList(
+                            BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(liste.get(0)).build()));
+            // Satın almayı bu hesaba bağla: sunucu, başkasının jetonunun kullanılmasını engeller
+            if (hesap != null && !hesap.isEmpty() && hesap.length() <= 64) pb.setObfuscatedAccountId(hesap);
+            BillingFlowParams p = pb.build();
             BillingResult r = istemci(a).launchBillingFlow(a, p);
-            if (r.getResponseCode() != BillingClient.BillingResponseCode.OK) {
+            if (r.getResponseCode() == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
+                bekleyen = null;
+                // Zaten alınmış: elimizdeki satın almayı bul ve onu döndür
+                sahipOlunanlar(a, o -> {
+                    String token = o.optString(urun, "");
+                    if (token.isEmpty()) {
+                        JSONArray h = o.optJSONArray(urun + "_liste");
+                        if (h != null && h.length() > 0) token = h.optString(0);
+                    }
+                    sonuc.bitti(token.isEmpty() ? "hata" : "tamam", token, token.isEmpty() ? "Bu ürün zaten alınmış." : "");
+                });
+            } else if (r.getResponseCode() != BillingClient.BillingResponseCode.OK) {
                 bekleyen = null;
                 sonuc.bitti("hata", "", aciklama(r));
             }
-        }), sonuc);
+        }), m -> sonuc.bitti("hata", "", m));
     }
 
     private static void satinAlmaGuncellendi(BillingResult r, List<Purchase> liste) {
         Sonuc s = bekleyen;
+        String urun = bekleyenUrun;
         bekleyen = null;
         int kod = r.getResponseCode();
         if (kod == BillingClient.BillingResponseCode.OK && liste != null) {
-            boolean tamam = false, bekliyor = false;
+            String token = "";
+            boolean bekliyor = false;
             for (Purchase p : liste) {
                 if (p.getPurchaseState() == Purchase.PurchaseState.PURCHASED) {
-                    tuket(p);
-                    tamam = true;
+                    if (p.getProducts().contains(URUN)) tuket(p.getPurchaseToken());
+                    else if (p.getProducts().contains(TAM)) onayla(p);
+                    // iyiyim_hediye: sunucu kabul edince tüketilir
+                    if (urun == null || p.getProducts().contains(urun)) token = p.getPurchaseToken();
                 } else if (p.getPurchaseState() == Purchase.PurchaseState.PENDING) {
                     bekliyor = true;
                 }
             }
             if (s != null) {
-                if (tamam) s.bitti("tesekkurler", "", "");
-                else if (bekliyor) s.bitti("bekliyor", "", "Ödemen onay bekliyor. Onaylanınca desteğin tamamlanacak.");
+                if (!token.isEmpty()) s.bitti("tamam", token, "");
+                else if (bekliyor) s.bitti("bekliyor", "", "Ödemen onay bekliyor. Onaylanınca tamamlanacak.");
                 else s.bitti("hata", "", "Ödeme tamamlanmadı.");
             }
         } else if (kod == BillingClient.BillingResponseCode.USER_CANCELED) {
@@ -140,24 +176,49 @@ final class Destek {
         }
     }
 
-    private static void tuket(Purchase p) {
-        if (istemci == null) return;
-        istemci.consumeAsync(ConsumeParams.newBuilder().setPurchaseToken(p.getPurchaseToken()).build(), (r, t) -> {
-            if (r.getResponseCode() != BillingClient.BillingResponseCode.OK && !p.isAcknowledged()) {
-                istemci.acknowledgePurchase(AcknowledgePurchaseParams.newBuilder()
-                        .setPurchaseToken(p.getPurchaseToken()).build(), x -> { });
-            }
-        });
+    private static void onayla(Purchase p) {
+        if (istemci == null || p.isAcknowledged()) return;
+        istemci.acknowledgePurchase(AcknowledgePurchaseParams.newBuilder()
+                .setPurchaseToken(p.getPurchaseToken()).build(), x -> { });
+    }
+
+    static void tuket(String token) {
+        if (istemci == null || token == null || token.isEmpty()) return;
+        istemci.consumeAsync(ConsumeParams.newBuilder().setPurchaseToken(token).build(), (r, t) -> { });
+    }
+
+    interface Sahip {
+        void geldi(JSONObject o);
+    }
+
+    /** Hesabın elindeki satın almalar: {"iyiyim_tam": token, "iyiyim_hediye_liste": [token, ...]} */
+    static void sahipOlunanlar(Context c, Sahip sonuc) {
+        baglan(c, () -> istemci(c).queryPurchasesAsync(QueryPurchasesParams.newBuilder()
+                .setProductType(BillingClient.ProductType.INAPP).build(), (r, liste) -> {
+            JSONObject o = new JSONObject();
+            JSONArray hediyeler = new JSONArray();
+            try {
+                if (liste != null) {
+                    for (Purchase p : liste) {
+                        if (p.getPurchaseState() != Purchase.PurchaseState.PURCHASED) continue;
+                        if (p.getProducts().contains(TAM)) {
+                            onayla(p);
+                            o.put(TAM, p.getPurchaseToken());
+                        } else if (p.getProducts().contains(HEDIYE)) {
+                            hediyeler.put(p.getPurchaseToken());
+                        } else if (p.getProducts().contains(URUN)) {
+                            tuket(p.getPurchaseToken());
+                        }
+                    }
+                }
+                o.put(HEDIYE + "_liste", hediyeler);
+            } catch (Exception ignored) {}
+            sonuc.geldi(o);
+        }), m -> sonuc.geldi(new JSONObject()));
     }
 
     private static void yarimKalanlariTamamla(Context c) {
-        istemci(c).queryPurchasesAsync(QueryPurchasesParams.newBuilder()
-                .setProductType(BillingClient.ProductType.INAPP).build(), (r, liste) -> {
-            if (liste == null) return;
-            for (Purchase p : liste) {
-                if (p.getPurchaseState() == Purchase.PurchaseState.PURCHASED) tuket(p);
-            }
-        });
+        sahipOlunanlar(c, o -> { });
     }
 
     private static String aciklama(BillingResult r) {
@@ -170,7 +231,7 @@ final class Destek {
                 return "Google Play'e ulaşılamadı. İnternetini kontrol edip tekrar dene.";
             case BillingClient.BillingResponseCode.ITEM_UNAVAILABLE:
             case BillingClient.BillingResponseCode.DEVELOPER_ERROR:
-                return "Destek seçeneği Play Store sürümünde etkin olacak.";
+                return "Satın alma Play Store sürümünde etkin olacak.";
             default:
                 return "Ödeme başlatılamadı (" + r.getResponseCode() + ").";
         }

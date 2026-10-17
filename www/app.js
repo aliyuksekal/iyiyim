@@ -34,6 +34,11 @@
       tonDinle: async () => ({}),
       tonDurdur: async () => ({}),
       destekFiyati: async () => ({ durum: "hata", fiyat: "", mesaj: "" }),
+      urunFiyatlari: async () => ({ fiyatlar: {}, mesaj: "" }),
+      satinAl: async () => ({ durum: "hata", token: "", mesaj: "Satın alma Play Store sürümünde etkin olacak." }),
+      sahipOlunanlar: async () => ({}),
+      tuket: async () => ({}),
+      tamIstegi: async () => ({ goster: false }),
       destekOl: async () => ({ durum: "hata", mesaj: "Destek seçeneği Play Store sürümünde etkin olacak." }),
       otomatikBaslatma: async () => ({ ozel: true }),
       alarmKur: async (o) => { console.log("alarmKur", o); return {}; },
@@ -181,7 +186,7 @@
       const d = durumHesapla(k);
       const tel = telefonlar[k.id];
       // "İyi mi?" her zaman var; acil durumda yanında arama düğmesi de çıkar
-      let sag = `<button class="sor-dugme" data-sor="${kacis(k.id)}">İyi mi?</button>`;
+      let sag = `<button class="sor-dugme${tamYok() ? " kilitli" : ""}" data-sor="${kacis(k.id)}">İyi mi?</button>`;
       if ((d.sinif === "durum-yardim" || d.sinif === "durum-cevapsiz") && tel) {
         sag = `<div class="sag-dugmeler"><a class="ara-yuvarlak" aria-label="${kacis(k.ad)} kişisini ara" href="tel:${kacis(tel.replace(/[^0-9+]/g, ""))}">${ARA_SVG}</a>${sag}</div>`;
       }
@@ -217,6 +222,7 @@
       $("#baglanti-uyari").hidden = true;
       alarmlariEsitle();
       ciz();
+      tamGoster();
       widgetGuncelle(v);
       // Bildirim kaçmış olsa bile, uygulama açıkken bekleyen soruyu tam ekran göster
       const bekleyen = (v.kisiler || []).filter((k) => k.bekleyenSoru && !gosterilenSorular.has(k.bekleyenSoru.id))
@@ -266,6 +272,7 @@
   async function sor(kisiId, dugme) {
     const k = ((veri && veri.kisiler) || []).find((x) => x.id === kisiId);
     if (!k) return;
+    if (tamYok()) { tamAc(`“${k.ad} iyi mi?” diye sormak ve cevap gelmezse alarm kurmak İyiyim Tam ile açılır.`); return; }
     dugme.disabled = true;
     dugme.textContent = "…";
     try {
@@ -279,7 +286,8 @@
       tost(v.ulasti ? `Soru gönderildi: ${k.ad}` : `Soru kaydedildi. ${k.ad} uygulamayı açınca görecek.`, 3200);
       if ("vibrate" in navigator) navigator.vibrate(20);
     } catch (e) {
-      if (e.durum === 429 && e.veri && e.veri.kalan) tost(`${kalanMetin(e.veri.kalan)} sonra tekrar sorabilirsin`);
+      if (e.durum === 402 && e.veri && e.veri.tamGerekli) { tamDegisti(false); tamAc(`“${k.ad} iyi mi?” diye sormak İyiyim Tam ile açılır.`); }
+      else if (e.durum === 429 && e.veri && e.veri.kalan) tost(`${kalanMetin(e.veri.kalan)} sonra tekrar sorabilirsin`);
       else tost(e.message);
       yenile();
     }
@@ -341,6 +349,11 @@
     } else if (o.tip === "eklendi") {
       tost(`${o.ad} seni ekledi`);
       sayfaKapat();
+    } else if (o.tip === "hediye") {
+      tamDegisti(true);
+      tost(`${o.ad} sana İyiyim Tam hediye etti 🎁`, 5000);
+    } else if (o.tip === "hediyeKullanildi") {
+      tost(`Hediyen ulaştı 🎁 ${o.ad} kodu kullandı`, 5000);
     }
     yenile();
   }
@@ -455,8 +468,19 @@
     $("#kisi-baslik").textContent = k.ad;
     $("#kisi-telefon").value = telefonlar[k.id] || "";
     ulasDugmeleri(telefonlar[k.id] || "");
+    const kt = $("#kisi-tam"), kh = $("#kisi-hediye");
+    kt.hidden = false;
+    if (k.tam) {
+      kt.innerHTML = `<b>★ İyiyim Tam</b> · ${kacis(k.ad)} da sana “İyi mi?” diye sorabiliyor.`;
+      kh.hidden = true;
+    } else {
+      kt.innerHTML = `${kacis(k.ad)} şu an sana sadece cevap verebiliyor. Tam hediye edersen o da sana sorabilir, cevap gelmezse alarmı çalar.`;
+      kh.hidden = false;
+      kh.textContent = `🎁 ${k.ad} için Tam hediye et · ${fiyat(URUN_HEDIYE)}`;
+    }
     sayfaAc("#sayfa-kisi");
   }
+  $("#kisi-hediye").addEventListener("click", () => { if (seciliKisi) hediyeAc(seciliKisi.id); });
   $("#kisi-kaydet").addEventListener("click", () => {
     if (!seciliKisi) return;
     const t = $("#kisi-telefon").value.trim();
@@ -505,6 +529,7 @@
   let herkeseOnay = false;
   $("#herkese").addEventListener("click", async () => {
     const b = $("#herkese");
+    if (tamYok()) { tamAc("Kimse sormadan tüm yakınlarına tek dokunuşla “İyiyim” demek İyiyim Tam ile açılır."); return; }
     if (!herkeseOnay) {
       herkeseOnay = true;
       b.classList.add("onay");
@@ -522,7 +547,8 @@
       if ("vibrate" in navigator) navigator.vibrate(20);
       yenile();
     } catch (e) {
-      if (e.durum === 429 && e.veri && e.veri.kalan) tost(`Az önce bildirdin. ${kalanMetin(e.veri.kalan)} sonra tekrar gönderebilirsin`);
+      if (e.durum === 402 && e.veri && e.veri.tamGerekli) { tamDegisti(false); tamAc("Herkese “İyiyim” demek İyiyim Tam ile açılır."); }
+      else if (e.durum === 429 && e.veri && e.veri.kalan) tost(`Az önce bildirdin. ${kalanMetin(e.veri.kalan)} sonra tekrar gönderebilirsin`);
       else tost(e.message);
     } finally { b.disabled = false; }
   });
@@ -702,15 +728,14 @@
   $("#alt-surum").textContent = "Sürüm " + (window.IYIYIM_SURUM || "");
   $("#destek-ac").addEventListener("click", async () => {
     sayfaAc("#sayfa-destek");
-    const r = await Iyiyim.destekFiyati().catch(() => ({}));
-    if (r && r.fiyat) $("#destek-fiyat").textContent = r.fiyat;
+    fiyatlariAl();
   });
   $("#destek-ol").addEventListener("click", async () => {
     const b = $("#destek-ol");
     b.disabled = true;
     try {
       const r = await Iyiyim.destekOl();
-      if (r.durum === "tesekkurler") {
+      if (r.durum === "tamam" || r.durum === "tesekkurler") {
         $("#destek-baslik").textContent = "Teşekkür ederim 💚";
         $("#destek-metin").innerHTML = "<p>Desteğin ulaştı. Bugün birinin “İyiyim” diyebilmesine sen de katkı verdin.</p><p>Bu uygulamayı her geliştirdiğimde aklımda olacaksın.</p>";
         b.hidden = true;
@@ -724,8 +749,274 @@
     finally { b.disabled = false; }
   });
 
+  // ---------- İyiyim Tam ve hediye ----------
+  const URUN_TAM = "iyiyim_tam", URUN_HEDIYE = "iyiyim_hediye", URUN_DESTEK = "destek_149";
+  const PLAY_LINK = "https://play.google.com/store/apps/details?id=com.matali.iyiyim";
+  let fiyatlar = oku("fiyatlar", {});
+  let bekleyenHediyeler = oku("bekleyenHediye", {}); // satın alma jetonu -> kime ("" = kod olarak)
+  // Sunucudan bilgi gelmeden kimseyi kilitleme; sunucu zaten her istekte kontrol eder
+  function tamYok() { return !!(veri && veri.ben && veri.ben.tam === false); }
+  const fiyat = (u) => fiyatlar[u] || (u === URUN_DESTEK ? "149,99 ₺" : "99,99 ₺");
+
+  async function fiyatlariAl() {
+    const r = await Iyiyim.urunFiyatlari({ urunler: [URUN_TAM, URUN_HEDIYE, URUN_DESTEK] }).catch(() => ({}));
+    if (r && r.fiyatlar && Object.keys(r.fiyatlar).length) {
+      fiyatlar = Object.assign({}, fiyatlar, r.fiyatlar);
+      yaz("fiyatlar", fiyatlar);
+    }
+    fiyatlariYaz();
+  }
+  function fiyatlariYaz() {
+    $("#tam-fiyat").textContent = fiyat(URUN_TAM);
+    $("#hediye-fiyat").textContent = fiyat(URUN_HEDIYE);
+    $("#destek-fiyat").textContent = fiyat(URUN_DESTEK);
+  }
+
+  function tamDegisti(var_) {
+    if (veri && veri.ben) { veri.ben.tam = !!var_; yaz("onbellek", veri); }
+    tamGoster();
+    ciz();
+  }
+  function tamGoster() {
+    const tam = !tamYok();
+    $("#tam-baglanti").hidden = !(veri && veri.ben) || tam;
+    const d = $("#ayar-tam-durum");
+    d.textContent = tam ? "Açık ✓" : fiyat(URUN_TAM);
+    d.className = tam ? "tamam" : "";
+    $("#ayar-tam-alt").textContent = tam ? "Bütün özellikler açık. Teşekkürler!" : "Sor, alarm kur, herkese “İyiyim” de";
+  }
+
+  function tamAc(neden) {
+    $("#tam-neden").textContent = neden || "Sevdiklerinin iyi olduğundan bir dokunuşla emin ol.";
+    fiyatlariYaz();
+    sayfaAc("#sayfa-tam");
+    fiyatlariAl();
+  }
+  $("#tam-baglanti").addEventListener("click", () => tamAc());
+  $("#ayar-tam").addEventListener("click", () => { if (tamYok()) tamAc(); else tost("İyiyim Tam açık ★ Desteğin için teşekkürler"); });
+  $("#ayar-hediye").addEventListener("click", () => hediyeAc());
+  $("#ayar-kod").addEventListener("click", () => kodAc());
+  $("#tam-hediye-ac").addEventListener("click", () => hediyeAc());
+  $("#tam-kod-ac").addEventListener("click", () => kodAc());
+
+  function odemeHatasi(r) {
+    if (!r || r.durum === "iptal") return;
+    tost(r.mesaj || "Ödeme tamamlanamadı", 4500);
+  }
+
+  $("#tam-al").addEventListener("click", async () => {
+    const b = $("#tam-al");
+    b.disabled = true;
+    try {
+      const r = await Iyiyim.satinAl({ urun: URUN_TAM, hesap: kimlik ? kimlik.id : "" });
+      if (r.durum === "tamam" && r.token) {
+        if (await tamSunucuya(r.token, true)) tamKutla();
+      } else odemeHatasi(r);
+    } catch (e) { tost("Ödeme başlatılamadı"); }
+    finally { b.disabled = false; }
+  });
+
+  /** Satın alma jetonunu sunucuya bildirir. Sunucu jetonu Google Play'e doğrulatır. */
+  async function tamSunucuya(token, sesli) {
+    try {
+      await istek("/tam", { token });
+      tamDegisti(true);
+      return true;
+    } catch (e) {
+      if (sesli) {
+        if (e.ag) tost("İnternet yok. Ödemen güvende; bağlanınca kendiliğinden açılacak.", 5000);
+        else if (e.veri && e.veri.tekrar) tost("Ödemen alındı, Google onaylıyor. Birkaç dakika içinde kendiliğinden açılacak.", 6000);
+        else tost(e.message, 5000);
+      }
+      return false;
+    }
+  }
+  function tamKutla() {
+    sayfaKapat();
+    if ("vibrate" in navigator) navigator.vibrate([30, 40, 30]);
+    const tamsiz = ((veri && veri.kisiler) || []).filter((k) => !k.tam);
+    if (tamsiz.length) {
+      hediyeAc(tamsiz[0].id, "★ İyiyim Tam açıldı!");
+      $("#hediye-secim .ipucu").textContent = `Teşekkürler! Artık istediğin kadar sorabilirsin. ${tamsiz[0].ad} da sana sorabilsin ister misin? Ona da hediye edebilirsin.`;
+    } else {
+      tost("★ İyiyim Tam açıldı. Teşekkürler!", 4000);
+    }
+  }
+
+  /** Play'deki satın almaları sunucuyla eşitler: geri yükleme ve yarım kalan hediyeler. */
+  let esitleniyor = null;
+  function odemeleriEsitle(elle) {
+    if (!kimlik) return Promise.resolve();
+    if (esitleniyor) return esitleniyor;
+    esitleniyor = (async () => {
+      const o = await Iyiyim.sahipOlunanlar().catch(() => ({})) || {};
+      let bulundu = false;
+      if (o[URUN_TAM]) {
+        bulundu = true;
+        if (tamYok() || elle) {
+          const ok = await tamSunucuya(o[URUN_TAM], elle);
+          if (ok && elle) tost("İyiyim Tam geri yüklendi ★", 4000);
+        }
+      }
+      for (const t of o[URUN_HEDIYE + "_liste"] || []) {
+        bulundu = true;
+        await hediyeSunucuya(t, bekleyenHediyeler[t] || "", false);
+      }
+      if (elle && !bulundu) tost(yerel ? "Bu Google hesabında İyiyim Tam satın alımı bulunamadı" : "Geri yükleme Play Store sürümünde çalışır", 4500);
+    })().finally(() => { esitleniyor = null; });
+    return esitleniyor;
+  }
+  $("#tam-geri").addEventListener("click", async () => {
+    const b = $("#tam-geri");
+    b.disabled = true;
+    try { await odemeleriEsitle(true); if (!tamYok()) sayfaKapat(); } finally { b.disabled = false; }
+  });
+
+  // --- hediye et ---
+  let hediyeKime = "";
+  function hediyeAc(kisiId, baslik) {
+    const liste = (veri && veri.kisiler) || [];
+    hediyeKime = kisiId !== undefined ? kisiId : ((liste.find((k) => !k.tam) || {}).id || "");
+    $("#hediye-baslik").textContent = baslik || "🎁 İyiyim Tam hediye et";
+    $("#hediye-secim .ipucu").textContent = "Annen, baban ya da bir yakının da sana “İyi mi?” diye sorabilsin, alarm kurabilsin. Ödemeyi sen yaparsın, onun hiçbir şey yapması gerekmez.";
+    $("#hediye-secim").hidden = false;
+    $("#hediye-sonuc").hidden = true;
+    hediyeListesiCiz();
+    fiyatlariYaz();
+    sayfaAc("#sayfa-hediye");
+    fiyatlariAl();
+  }
+  function hediyeListesiCiz() {
+    const liste = (veri && veri.kisiler) || [];
+    $("#hediye-liste").innerHTML = liste.map((k) => `
+      <button class="hediye-secenek${hediyeKime === k.id ? " secili" : ""}" data-hk="${kacis(k.id)}"${k.tam ? " disabled" : ""}>
+        <span class="nokta"></span><span>${kacis(k.ad)}<small>${k.tam ? "Zaten İyiyim Tam kullanıyor" : "Hemen açılır, ona bildirim gider"}</small></span>
+      </button>`).join("") + `
+      <button class="hediye-secenek${hediyeKime === "" ? " secili" : ""}" data-hk="">
+        <span class="nokta"></span><span>Kod olarak al<small>Listende olmayan birine WhatsApp'tan gönder</small></span>
+      </button>`;
+  }
+  $("#hediye-liste").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-hk]");
+    if (!b || b.disabled) return;
+    hediyeKime = b.dataset.hk;
+    hediyeListesiCiz();
+  });
+  $("#hediye-al").addEventListener("click", async () => {
+    const b = $("#hediye-al");
+    b.disabled = true;
+    try {
+      await odemeleriEsitle(false); // yarım kalmış bir hediye varsa önce onu tamamla
+      const r = await Iyiyim.satinAl({ urun: URUN_HEDIYE, hesap: kimlik ? kimlik.id : "" });
+      if (r.durum === "tamam" && r.token) {
+        bekleyenHediyeler[r.token] = hediyeKime;
+        yaz("bekleyenHediye", bekleyenHediyeler);
+        await hediyeSunucuya(r.token, hediyeKime, true);
+      } else odemeHatasi(r);
+    } catch (e) { tost("Ödeme başlatılamadı"); }
+    finally { b.disabled = false; }
+  });
+
+  async function hediyeSunucuya(token, kime, sesli) {
+    try {
+      const v = await istek("/hediye", kime ? { token, kime } : { token });
+      delete bekleyenHediyeler[token];
+      yaz("bekleyenHediye", bekleyenHediyeler);
+      Iyiyim.tuket({ token }).catch(() => {});
+      if (sesli) hediyeSonucGoster(v);
+      else if (!v.tekrar) tost(v.kime ? `Hediyen ulaştı 🎁 ${v.kime} artık İyiyim Tam kullanıyor` : `Hediye kodun hazır: ${v.kod} (Ayarlar > Verdiğim hediyeler)`, 6000);
+      yenile();
+      return true;
+    } catch (e) {
+      // Kişi bu arada listeden çıktıysa hediye boşa gitmesin: kod olarak al
+      if (kime && e.durum === 404) return hediyeSunucuya(token, "", sesli);
+      if (sesli) {
+        if (e.ag) tost("İnternet yok. Ödemen güvende; bağlanınca hediye kendiliğinden gönderilecek.", 5000);
+        else if (e.veri && e.veri.tekrar) tost("Ödemen alındı, Google onaylıyor. Onaylanınca hediye kendiliğinden gönderilecek.", 6000);
+        else tost(e.message, 5000);
+      }
+      return false;
+    }
+  }
+  let sonHediyeKodu = "";
+  function hediyeSonucGoster(v) {
+    $("#hediye-secim").hidden = true;
+    $("#hediye-sonuc").hidden = false;
+    $("#hediye-baslik").textContent = "Hediyen hazır 🎁";
+    sonHediyeKodu = v.kod && !v.kime ? v.kod : "";
+    if (v.kime) {
+      $("#hediye-sonuc-metin").textContent = `${v.kime} artık İyiyim Tam kullanıyor. Ona bildirim gitti; o da sana “İyi mi?” diye sorabilir.`;
+    } else if (v.zatenTam) {
+      $("#hediye-sonuc-metin").textContent = `${v.zatenTam} bu arada zaten Tam olmuş. Hediyen boşa gitmesin diye kod olarak hazırlandı; başka bir yakınına gönderebilirsin.`;
+    } else {
+      $("#hediye-sonuc-metin").textContent = "Kodu gönder. Uygulamayı kurup Ayarlar > “Hediye kodum var” kısmına yazması yeterli.";
+    }
+    $("#hediye-kod").hidden = !sonHediyeKodu;
+    $("#hediye-kod").textContent = sonHediyeKodu;
+    $("#hediye-paylas").hidden = !sonHediyeKodu;
+  }
+  const hediyeMetni = (kod) => `Sana İyiyim Tam hediye ettim 🎁 Play Store'dan İyiyim'i indir: ${PLAY_LINK} Sonra Ayarlar > “Hediye kodum var” kısmına bu kodu yaz: ${kod}`;
+  async function kodPaylas(kod) {
+    try {
+      if (PaylasP) await PaylasP.share({ title: "İyiyim Tam hediye", text: hediyeMetni(kod), dialogTitle: "Hediye kodunu gönder" });
+      else if (navigator.share) await navigator.share({ text: hediyeMetni(kod) });
+      else throw 0;
+    } catch (e) { kopyala(hediyeMetni(kod)); }
+  }
+  $("#hediye-paylas").addEventListener("click", () => sonHediyeKodu && kodPaylas(sonHediyeKodu));
+  $("#hediye-tamam").addEventListener("click", sayfaKapat);
+
+  // --- hediye kodu gir ---
+  function kodAc() {
+    $("#hediye-kod-girdi").value = "";
+    sayfaAc("#sayfa-kod");
+    setTimeout(() => $("#hediye-kod-girdi").focus(), 80);
+  }
+  $("#hediye-kod-kullan").addEventListener("click", async () => {
+    const kod = $("#hediye-kod-girdi").value.toUpperCase().replace(/[^0-9A-Z]/g, "");
+    if (kod.length !== 8) { tost("Kod H ile başlayan 8 karakter olmalı"); return; }
+    const b = $("#hediye-kod-kullan");
+    b.disabled = true;
+    try {
+      const v = await istek("/hediye-kullan", { kod });
+      tamDegisti(true);
+      sayfaKapat();
+      tost(v.veren ? `${v.veren} sana İyiyim Tam hediye etti 🎁` : "İyiyim Tam açıldı 🎁", 5000);
+      yenile();
+    } catch (e) { tost(e.message, 4500); }
+    finally { b.disabled = false; }
+  });
+  $("#hediye-kod-girdi").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#hediye-kod-kullan").click(); });
+
+  // --- verdiğim hediyeler ---
+  $("#ayar-hediyelerim").addEventListener("click", async () => {
+    const l = $("#hediyelerim-liste");
+    l.innerHTML = `<p class="ipucu">Yükleniyor…</p>`;
+    sayfaAc("#sayfa-hediyelerim");
+    try {
+      const v = await istek("/hediyelerim");
+      const h = v.hediyeler || [];
+      l.innerHTML = h.length ? h.map((x) => {
+        const durum = x.iptal ? "İade edildi" : x.kullanan ? `${kacis(x.kullanan)} kullanıyor` : "Henüz kullanılmadı · dokun, gönder";
+        return `<button class="ayar-satir" data-hkod="${x.iptal || x.kullanan ? "" : kacis(x.kod)}"><span>${kacis(x.kod)}<small>${durum}</small></span><em>${x.kullanan ? "✓" : x.iptal ? "" : "Gönder"}</em></button>`;
+      }).join("") : `<p class="ipucu">Henüz hediye vermedin.</p>`;
+    } catch (e) { l.innerHTML = `<p class="ipucu">${kacis(e.message)}</p>`; }
+  });
+  $("#hediyelerim-liste").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-hkod]");
+    if (b && b.dataset.hkod) kodPaylas(b.dataset.hkod);
+  });
+
+  function tamIstegiBak() {
+    Iyiyim.tamIstegi().then((r) => {
+      if (r && r.goster && tamYok()) tamAc("Ana ekrandaki “İyiyim” düğmesi İyiyim Tam ile çalışır.");
+    }).catch(() => {});
+  }
+
   // --- ayarlar ---
   function ayarlariDoldur() {
+    tamGoster();
+    $("#ayar-hediyelerim").hidden = !kimlik;
     $("#ayar-ad").value = kimlik ? kimlik.ad : "";
     secimleriGoster();
     $("#surum").textContent = window.IYIYIM_SURUM || "";
@@ -906,7 +1197,7 @@
       if (acikSayfa) { sayfaKapat(); return; }
       UygulamaP.minimizeApp ? UygulamaP.minimizeApp() : UygulamaP.exitApp();
     });
-    UygulamaP.addListener("resume", () => { bekleyenOlaylar(); yenile(); });
+    UygulamaP.addListener("resume", () => { bekleyenOlaylar(); yenile(); tamIstegiBak(); });
   }
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { bekleyenOlaylar(); yenile(); } });
 
@@ -920,7 +1211,8 @@
     await yerelAyarla();
     bekleyenOlaylar();
     jetonuEsitle();
-    yenile();
+    tamGoster();
+    yenile().then(() => { tamGoster(); odemeleriEsitle(false); tamIstegiBak(); });
   }
   setInterval(() => { if (document.visibilityState === "visible" && kimlik) { ciz(); } }, 20000);
   setInterval(() => { if (document.visibilityState === "visible" && kimlik) yenile(); }, 30000);

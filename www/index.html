@@ -103,6 +103,7 @@
       </button>
       <div class="alt-bilgi">
         <span class="surum-etiket" id="alt-surum"></span>
+        <button class="tam-baglanti" id="tam-baglanti" hidden>★ İyiyim Tam</button>
         <button class="destek-baglanti" id="destek-ac">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"/></svg>
           Geliştiriciyi destekle
@@ -162,6 +163,8 @@
       <a class="dugme dugme-ikincil" id="kisi-ara" href="#">Ara</a>
       <a class="dugme dugme-ikincil" id="kisi-wp" href="#">WhatsApp</a>
     </div>
+    <div class="kisi-tam" id="kisi-tam" hidden></div>
+    <button class="dugme dugme-hediye dugme-genis" id="kisi-hediye" hidden></button>
     <button class="dugme dugme-ana dugme-genis" id="kisi-kaydet">Kaydet</button>
     <button class="metin-dugme tehlike" id="kisi-cikar">Listeden çıkar</button>
   </div>
@@ -169,6 +172,13 @@
   <div id="sayfa-ayar" class="alt-sayfa" role="dialog" aria-modal="true" aria-labelledby="ayar-baslik" hidden>
     <div class="tutamac"></div>
     <h2 id="ayar-baslik">Ayarlar</h2>
+
+    <div class="ayar-liste tam-ayar">
+      <button class="ayar-satir vurgulu" id="ayar-tam"><span>İyiyim Tam<small id="ayar-tam-alt">Sor, alarm kur, herkese “İyiyim” de</small></span><em id="ayar-tam-durum">Al</em></button>
+      <button class="ayar-satir" id="ayar-hediye"><span>🎁 Bir yakınına hediye et<small>Annen, baban da sorabilsin</small></span><em>Hediye et</em></button>
+      <button class="ayar-satir" id="ayar-kod"><span>Hediye kodum var</span><em>Gir</em></button>
+      <button class="ayar-satir" id="ayar-hediyelerim" hidden><span>Verdiğim hediyeler</span><em>Gör</em></button>
+    </div>
 
     <label for="ayar-ad" class="etiket">Adın</label>
     <input id="ayar-ad" class="girdi" maxlength="40" autocomplete="off">
@@ -283,6 +293,65 @@
       <span id="destek-fiyat">149,99 ₺</span> ile destekle
     </button>
     <p class="ipucu kucuk destek-not" id="destek-not">İsteğe bağlı ve tek seferlik. Desteklemesen de İyiyim'in her özelliği aynen çalışır.</p>
+  </div>
+
+  <!-- ===== İyiyim Tam ===== -->
+  <div id="sayfa-tam" class="alt-sayfa tam-sayfa" role="dialog" aria-modal="true" aria-labelledby="tam-baslik" hidden>
+    <div class="tutamac"></div>
+    <div class="tam-rozet" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6L12 3Z"/><path class="tik" d="m8.5 12 2.4 2.4L15.5 9.8"/></svg>
+    </div>
+    <h2 id="tam-baslik">İyiyim Tam</h2>
+    <p class="tam-neden" id="tam-neden">Sevdiklerinin iyi olduğundan bir dokunuşla emin ol.</p>
+    <ul class="tam-liste">
+      <li><b>İstediğin kadar “İyi mi?” diye sor.</b> Sınır yok, bekleme yok.</li>
+      <li><b>Cevap gelmezse alarm çalar.</b> Telefonun yüksek sesle uyarır, tek dokunuşla ararsın.</li>
+      <li><b>“Yardım lazım” derse konumunu görürsün.</b> Haritada tek dokunuşla açılır.</li>
+      <li><b>Herkese tek dokunuşla “İyiyim” de.</b> Ana ekran düğmesi dahil.</li>
+      <li><b>Bir kere öde, hep kullan.</b> Abonelik yok, reklam yok.</li>
+    </ul>
+    <button class="dugme dugme-ana dugme-genis tam-al" id="tam-al"><span id="tam-fiyat">99,99 ₺</span> · Satın al</button>
+    <button class="dugme dugme-hediye dugme-genis" id="tam-hediye-ac">🎁 Bir yakınına hediye et</button>
+    <p class="ipucu kucuk tam-ucretsiz">Gelen sorulara cevap vermek ve <b>Yardım iste</b> herkes için her zaman ücretsiz.</p>
+    <div class="satir-baglantilar">
+      <button class="metin-dugme" id="tam-kod-ac">Hediye kodum var</button>
+      <button class="metin-dugme" id="tam-geri">Satın alımı geri yükle</button>
+    </div>
+  </div>
+
+  <!-- ===== Hediye et ===== -->
+  <div id="sayfa-hediye" class="alt-sayfa" role="dialog" aria-modal="true" aria-labelledby="hediye-baslik" hidden>
+    <div class="tutamac"></div>
+    <h2 id="hediye-baslik">🎁 İyiyim Tam hediye et</h2>
+    <div id="hediye-secim">
+      <p class="ipucu">Annen, baban ya da bir yakının da sana “İyi mi?” diye sorabilsin, alarm kurabilsin. Ödemeyi sen yaparsın, onun hiçbir şey yapması gerekmez.</p>
+      <div class="hediye-liste" id="hediye-liste"></div>
+      <button class="dugme dugme-ana dugme-genis" id="hediye-al"><span id="hediye-fiyat">99,99 ₺</span> ile hediye et</button>
+      <p class="ipucu kucuk">Listede olmayan biri için “Kod olarak al”ı seç. Kodu WhatsApp'tan gönderirsin, o da uygulamada “Hediye kodum var”a yazar.</p>
+    </div>
+    <div id="hediye-sonuc" hidden>
+      <div class="hediye-kutlama" aria-hidden="true">🎁</div>
+      <p class="hediye-sonuc-metin" id="hediye-sonuc-metin"></p>
+      <div class="hediye-kod" id="hediye-kod" hidden></div>
+      <button class="dugme dugme-ana dugme-genis" id="hediye-paylas" hidden>Kodu gönder</button>
+      <button class="dugme dugme-ikincil dugme-genis" id="hediye-tamam">Tamam</button>
+    </div>
+  </div>
+
+  <!-- ===== Hediye kodu gir ===== -->
+  <div id="sayfa-kod" class="alt-sayfa" role="dialog" aria-modal="true" aria-labelledby="kod-baslik" hidden>
+    <div class="tutamac"></div>
+    <h2 id="kod-baslik">Hediye kodunu gir</h2>
+    <p class="ipucu">Sana gönderilen <b>H</b> ile başlayan 8 karakterlik kodu yaz.</p>
+    <input id="hediye-kod-girdi" class="girdi kod-girdi" maxlength="9" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="HXXXXXXX">
+    <button class="dugme dugme-ana dugme-genis" id="hediye-kod-kullan">Kullan</button>
+  </div>
+
+  <!-- ===== Verdiğim hediyeler ===== -->
+  <div id="sayfa-hediyelerim" class="alt-sayfa" role="dialog" aria-modal="true" aria-labelledby="hediyelerim-baslik" hidden>
+    <div class="tutamac"></div>
+    <h2 id="hediyelerim-baslik">Verdiğim hediyeler</h2>
+    <div class="ayar-liste" id="hediyelerim-liste"></div>
   </div>
 
   <div id="tost" class="tost" role="status" hidden></div>

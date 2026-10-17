@@ -13,3 +13,7 @@ enabled = true
 binding = "DB"
 database_name = "iyiyim"
 database_id = "OTOMATIK"
+
+# Her gece 03:17 (TR 06:17): Play iadelerini kontrol et
+[triggers]
+crons = ["17 3 * * *"]

@@ -162,6 +162,9 @@ public class IyiyimWidget extends AppWidgetProvider {
                         int kisi = new JSONObject((String) r[1]).optInt("kisi", 0);
                         olayEkle(c, "ben", "Sen", "ben_iyi", System.currentTimeMillis());
                         durumYaz(c, "✓ " + kisi + " kişiye gitti");
+                    } else if (kod == 402) {
+                        Ortak.tercih(c).edit().putBoolean("tam_goster", true).apply();
+                        durumYaz(c, "İyiyim Tam gerekli · uygulamayı aç");
                     } else if (kod == 429) {
                         durumYaz(c, "Az önce bildirdin, biraz sonra tekrar dene");
                     } else if (kod == -1) {

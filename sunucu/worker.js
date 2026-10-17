@@ -2,9 +2,14 @@
 // Gerekenler (Cloudflare panelinden):
 //   D1 bağlantısı adı:  DB
 //   Gizli değişken:     FCM_HESAP  -> Firebase hizmet hesabı JSON dosyasının tamamı
+//                        (aynı hesap Play Console'a davet edilir; ödemeler onunla Google'a doğrulatılır)
 // Tablolar ilk istekte kendiliğinden kurulur.
 
-const SUNUCU_SURUM = "1.3";
+const SUNUCU_SURUM = "1.6";
+const PAKET = "com.matali.iyiyim";
+const URUN_TAM = "iyiyim_tam";
+const URUN_HEDIYE = "iyiyim_hediye";
+const TASIMA_ARASI_MS = 3 * 24 * 60 * 60 * 1000; // bir satın alma 3 günde bir başka hesaba taşınabilir
 const SORU_ARASI_MS = 0;                   // "İyi misin?" için bekleme süresi yok
 const DAVET_SURESI_MS = 24 * 60 * 60 * 1000; // davet kodu 24 saat geçerli
 const KOD_HARFLERI = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -19,11 +24,20 @@ const SEMA = [
   `CREATE TABLE IF NOT EXISTS sorular (id TEXT PRIMARY KEY, kimden TEXT NOT NULL, kime TEXT NOT NULL, zaman INTEGER NOT NULL, cevap TEXT, cevap_zamani INTEGER)`,
   `CREATE INDEX IF NOT EXISTS sorular_cift ON sorular (kimden, kime, zaman)`,
   `CREATE INDEX IF NOT EXISTS sorular_kime ON sorular (kime, zaman)`,
+  `CREATE TABLE IF NOT EXISTS satinalmalar (token TEXT PRIMARY KEY, urun TEXT NOT NULL, kullanici TEXT, olusma INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS hediyeler (kod TEXT PRIMARY KEY, veren TEXT NOT NULL, token TEXT NOT NULL, kullanan TEXT, olusma INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS sinirlar (anahtar TEXT NOT NULL, zaman INTEGER NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS sinirlar_anahtar ON sinirlar (anahtar, zaman)`,
+  `CREATE TABLE IF NOT EXISTS ayarlar (ad TEXT PRIMARY KEY, deger TEXT)`,
 ];
 // Sonradan eklenen sütunlar (var olan veritabanlarında tek tek eklenir, varsa hata yutulur)
 const EK_SUTUNLAR = [
   "ALTER TABLE sorular ADD COLUMN konum TEXT",
   "ALTER TABLE kullanicilar ADD COLUMN durum_konum TEXT",
+  "ALTER TABLE satinalmalar ADD COLUMN iptal INTEGER DEFAULT 0",
+  "ALTER TABLE satinalmalar ADD COLUMN siparis TEXT",
+  "ALTER TABLE satinalmalar ADD COLUMN tasima INTEGER",
+  "ALTER TABLE hediyeler ADD COLUMN iptal INTEGER DEFAULT 0",
 ];
 let semaHazir = false;
 
@@ -46,19 +60,17 @@ export default {
   async fetch(istek, env, ctx) {
     if (istek.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
     try {
-      if (!semaHazir) {
-        await env.DB.batch(SEMA.map((s) => env.DB.prepare(s)));
-        for (const a of EK_SUTUNLAR) {
-          try { await env.DB.prepare(a).run(); } catch (e) { /* sütun zaten var */ }
-        }
-        semaHazir = true;
-      }
+      await semaKur(env);
       const yol = new URL(istek.url).pathname.replace(/\/+$/, "") || "/";
       const govde = istek.method === "POST" ? await istek.json().catch(() => ({})) : {};
 
       if (yol === "/" ) return json({ uygulama: "iyiyim", durum: "calisiyor", surum: SUNUCU_SURUM });
       if (Math.random() < 0.02) ctx.waitUntil(temizlik(env));
-      if (yol === "/kayit" && istek.method === "POST") return kayit(env, govde);
+      const ip = istek.headers.get("CF-Connecting-IP") || "?";
+      if (yol === "/kayit" && istek.method === "POST") {
+        if (await sinirAsildi(env, "kayit:" + ip, 10, 60 * 60 * 1000, true)) return hata("Çok fazla deneme. Biraz sonra tekrar dene.", 429);
+        return kayit(env, govde);
+      }
 
       const ben = await kimlikDogrula(env, istek);
       if (!ben) return hata("Kimlik doğrulanamadı", 401);
@@ -66,11 +78,15 @@ export default {
       switch (`${istek.method} ${yol}`) {
         case "POST /guncelle": return guncelle(env, ben, govde);
         case "POST /davet": return davetOlustur(env, ben);
-        case "POST /katil": return katil(env, ctx, ben, govde);
+        case "POST /katil": return katil(env, ctx, ben, govde, ip);
         case "GET /kisiler": return kisiler(env, ben);
         case "POST /sor": return sor(env, ben, govde);
         case "POST /cevap": return cevap(env, ben, govde);
         case "POST /herkese": return herkese(env, ctx, ben, govde);
+        case "POST /tam": return tamKaydet(env, ben, govde);
+        case "POST /hediye": return hediyeVer(env, ctx, ben, govde);
+        case "POST /hediye-kullan": return hediyeKullan(env, ctx, ben, govde, ip);
+        case "GET /hediyelerim": return hediyelerim(env, ben);
         case "POST /deneme": return deneme(env, ctx, ben, govde);
         case "POST /kisi-sil": return kisiSil(env, ben, govde);
         case "POST /hesap-sil": return hesapSil(env, ben);
@@ -81,7 +97,49 @@ export default {
       return hata("Sunucu hatası", 500);
     }
   },
+
+  // Her gece: Google Play'de iade edilen / iptal olan satın almaları geri al
+  async scheduled(olay, env, ctx) {
+    ctx.waitUntil((async () => {
+      await semaKur(env);
+      await iadeleriIsle(env);
+      await temizlik(env);
+    })());
+  },
 };
+
+async function semaKur(env) {
+  if (semaHazir) return;
+  await env.DB.batch(SEMA.map((s) => env.DB.prepare(s)));
+  for (const a of EK_SUTUNLAR) {
+    try { await env.DB.prepare(a).run(); } catch (e) { /* sütun zaten var */ }
+  }
+  // İyiyim Tam sütunu ilk kez eklenirse, o ana kadarki (test) kullanıcıları kalıcı Tam say
+  let tamYeni = false;
+  try {
+    await env.DB.prepare("ALTER TABLE kullanicilar ADD COLUMN tam INTEGER DEFAULT 0").run();
+    tamYeni = true;
+  } catch (e) { /* zaten var */ }
+  try { await env.DB.prepare("ALTER TABLE kullanicilar ADD COLUMN eski INTEGER DEFAULT 0").run(); } catch (e) { /* zaten var */ }
+  if (tamYeni) await env.DB.prepare("UPDATE kullanicilar SET tam = 1, eski = 1").run();
+  semaHazir = true;
+}
+
+/**
+ * Basit sınırlayıcı: son `pencere` içinde `anahtar` için en fazla `adet` kayıt.
+ * kaydet=true ise bu deneme de sayılır; false ise yalnızca bakılır (hatalı denemeler ayrıca yazılır).
+ */
+async function sinirAsildi(env, anahtar, adet, pencere, kaydet) {
+  const simdi = Date.now();
+  const r = await env.DB.prepare("SELECT COUNT(*) AS n FROM sinirlar WHERE anahtar = ? AND zaman > ?").bind(anahtar, simdi - pencere).first();
+  if (r && r.n >= adet) return true;
+  if (kaydet) await env.DB.prepare("INSERT INTO sinirlar (anahtar, zaman) VALUES (?, ?)").bind(anahtar, simdi).run();
+  return false;
+}
+async function hataliDeneme(env, ...anahtarlar) {
+  const simdi = Date.now();
+  await env.DB.batch(anahtarlar.map((a) => env.DB.prepare("INSERT INTO sinirlar (anahtar, zaman) VALUES (?, ?)").bind(a, simdi)));
+}
 
 // ---------- yardımcılar ----------
 function rastgeleHex(bayt) {
@@ -141,11 +199,18 @@ async function davetOlustur(env, ben) {
   return hata("Kod üretilemedi, tekrar dene", 500);
 }
 
-async function katil(env, ctx, ben, g) {
+async function katil(env, ctx, ben, g, ip) {
   const kod = String(g.kod || "").toUpperCase().replace(/[^0-9A-Z]/g, "");
   if (kod.length !== 6) return hata("Kod 6 karakter olmalı");
+  // Kod tahmin etmeye çalışanları durdur: saatte en fazla 10 hatalı deneme
+  if (await sinirAsildi(env, "katil:" + ben.id, 10, 3600000, false) || await sinirAsildi(env, "katil-ip:" + ip, 20, 3600000, false)) {
+    return hata("Çok fazla hatalı kod denendi. Bir saat sonra tekrar dene.", 429);
+  }
   const d = await env.DB.prepare("SELECT * FROM davetler WHERE kod = ?").bind(kod).first();
-  if (!d || d.bitis < Date.now()) return hata("Bu kod geçersiz ya da süresi dolmuş", 404);
+  if (!d || d.bitis < Date.now()) {
+    await hataliDeneme(env, "katil:" + ben.id, "katil-ip:" + ip);
+    return hata("Bu kod geçersiz ya da süresi dolmuş", 404);
+  }
   if (d.kullanici === ben.id) return hata("Bu senin kendi kodun");
   const o = await env.DB.prepare("SELECT id, ad, token FROM kullanicilar WHERE id = ?").bind(d.kullanici).first();
   if (!o) return hata("Kodun sahibi bulunamadı", 404);
@@ -161,7 +226,7 @@ async function katil(env, ctx, ben, g) {
 
 async function kisiler(env, ben) {
   const liste = await env.DB.prepare(
-    "SELECT u.id, u.ad, u.durum, u.durum_zamani, u.durum_konum, p.olusma FROM baglar p JOIN kullanicilar u ON u.id = p.b WHERE p.a = ? ORDER BY p.olusma"
+    "SELECT u.id, u.ad, u.durum, u.durum_zamani, u.durum_konum, u.tam, p.olusma FROM baglar p JOIN kullanicilar u ON u.id = p.b WHERE p.a = ? ORDER BY p.olusma"
   ).bind(ben.id).all();
   const sonuc = [];
   const alti = Date.now() - 6 * 60 * 60 * 1000;
@@ -177,15 +242,19 @@ async function kisiler(env, ben) {
     sonuc.push({
       id: k.id,
       ad: k.ad,
+      tam: !!k.tam,
       sonSoru: son,
       bekleyenSoru: (ondan.results && ondan.results[0]) || null,
       sonDurum: k.durum ? { cevap: k.durum, zaman: k.durum_zamani, konum: konumOku(k.durum_konum) } : null,
     });
   }
-  return json({ ben: { id: ben.id, ad: ben.ad }, kisiler: sonuc, simdi: Date.now(), soruArasi: SORU_ARASI_MS });
+  return json({ ben: { id: ben.id, ad: ben.ad, tam: !!ben.tam }, kisiler: sonuc, simdi: Date.now(), soruArasi: SORU_ARASI_MS });
 }
 
+const TAM_GEREKLI = (neden) => hata(neden, 402, { tamGerekli: true });
+
 async function sor(env, ben, g) {
+  if (!ben.tam) return TAM_GEREKLI("“İyi mi?” diye sormak için İyiyim Tam gerekli");
   const kime = String(g.kime || "");
   if (!(await bagliMi(env, ben.id, kime))) return hata("Bu kişi listende yok", 404);
   const son = await env.DB.prepare("SELECT zaman FROM sorular WHERE kimden = ? AND kime = ? ORDER BY zaman DESC LIMIT 1")
@@ -222,6 +291,8 @@ async function cevap(env, ben, g) {
 async function herkese(env, ctx, ben, g) {
   const c = String(g.cevap || "iyi");
   if (!CEVAPLAR.includes(c)) return hata("Geçersiz durum");
+  // Yardım isteği herkese ücretsiz; günlük "İyiyim" bildirimi İyiyim Tam ister
+  if (c !== "yardim" && !ben.tam) return TAM_GEREKLI("Herkese “İyiyim” demek için İyiyim Tam gerekli");
   const simdi = Date.now();
   // Yardım isteği acil durumdur: hiçbir zaman bekletilmez
   if (c !== "yardim" && ben.durum !== "yardim" && ben.durum_zamani && simdi - ben.durum_zamani < HERKESE_ARASI_MS) {
@@ -249,6 +320,215 @@ async function herkese(env, ctx, ben, g) {
   return json({ tamam: true, kisi: kisiler.length, ulasan: sonuclar.filter(Boolean).length });
 }
 
+// ---------------- İyiyim Tam ve hediye ----------------
+function temizToken(t) {
+  const x = String(t || "").trim();
+  return x.length >= 10 && x.length <= 4096 ? x : "";
+}
+
+/**
+ * Satın alma jetonunu Google Play'e sorar. Google "ödendi" demeden hiçbir şey açılmaz.
+ * Dönüş: { ok, satin } ya da { ok:false, durum, mesaj, tekrar } (tekrar=true: geçici sorun, sonra yeniden denenebilir)
+ */
+async function playDogrula(env, urun, token) {
+  const { hesap, hata: h } = hesapOku(env);
+  if (h) return { ok: false, durum: 503, tekrar: true, mesaj: "Ödeme şu an doğrulanamadı. Birazdan kendiliğinden tekrar denenecek." };
+  let r;
+  try {
+    const jeton = await googleJetonu(hesap, "https://www.googleapis.com/auth/androidpublisher");
+    r = await fetch(`https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PAKET}/purchases/products/${urun}/tokens/${encodeURIComponent(token)}`, {
+      headers: { Authorization: "Bearer " + jeton },
+    });
+  } catch (e) {
+    console.error("Play doğrulama bağlantısı", e && e.message);
+    return { ok: false, durum: 503, tekrar: true, mesaj: "Google Play'e ulaşılamadı. Birazdan kendiliğinden tekrar denenecek." };
+  }
+  if (r.status === 400 || r.status === 404 || r.status === 410) {
+    return { ok: false, durum: 402, tekrar: false, mesaj: "Bu satın alma Google Play'de bulunamadı." };
+  }
+  if (!r.ok) {
+    // 401/403: hizmet hesabı Play Console'a henüz davet edilmemiş; 5xx: Google tarafı
+    console.error("Play doğrulama", r.status, (await r.text()).slice(0, 300));
+    return { ok: false, durum: 503, tekrar: true, mesaj: "Ödeme şu an doğrulanamadı. Birazdan kendiliğinden tekrar denenecek." };
+  }
+  const v = await r.json();
+  // purchaseState: 0 ödendi, 1 iptal, 2 bekliyor
+  if (v.purchaseState === 2) return { ok: false, durum: 402, tekrar: true, mesaj: "Ödemen onay bekliyor. Onaylanınca kendiliğinden açılacak." };
+  if (v.purchaseState !== 0) return { ok: false, durum: 402, tekrar: false, mesaj: "Bu satın alma iptal edilmiş ya da iade edilmiş." };
+  return { ok: true, satin: v };
+}
+
+const dogrulamaHatasi = (d) => hata(d.mesaj, d.durum, { tekrar: !!d.tekrar });
+
+/** Kullanıcının Tam hakkını geçerli kaynaklardan yeniden hesaplar (iade/taşıma sonrası). */
+async function tamHesapla(env, kullanici) {
+  if (!kullanici) return;
+  await env.DB.prepare(
+    `UPDATE kullanicilar SET tam = CASE WHEN eski = 1
+       OR EXISTS (SELECT 1 FROM satinalmalar WHERE kullanici = ?1 AND urun = '${URUN_TAM}' AND IFNULL(iptal,0) = 0)
+       OR EXISTS (SELECT 1 FROM hediyeler WHERE kullanan = ?1 AND IFNULL(iptal,0) = 0)
+     THEN 1 ELSE 0 END WHERE id = ?1`
+  ).bind(kullanici).run();
+}
+
+/** Satın alınan (ya da geri yüklenen) İyiyim Tam'ı bu hesaba bağlar. */
+async function tamKaydet(env, ben, g) {
+  const token = temizToken(g.token);
+  if (!token) return hata("Satın alma bilgisi eksik");
+  const simdi = Date.now();
+  const var_ = await env.DB.prepare("SELECT * FROM satinalmalar WHERE token = ?").bind(token).first();
+  if (var_ && var_.urun !== URUN_TAM) return hata("Bu satın alma İyiyim Tam değil");
+  if (var_ && var_.iptal) return hata("Bu satın alma iade edilmiş ya da iptal olmuş", 402);
+  if (var_ && var_.kullanici === ben.id) {
+    await tamHesapla(env, ben.id);
+    return json({ tamam: true, tam: true });
+  }
+  const d = await playDogrula(env, URUN_TAM, token);
+  if (!d.ok) return dogrulamaHatasi(d);
+  if (var_ && var_.kullanici) {
+    // Aynı Google hesabıyla yeniden kurulum: Tam yeni hesaba taşınır (paylaşılmasın diye 3 günde bir)
+    const son = var_.tasima || 0; // ilk taşıma serbest (yeniden kurulum), sonrakiler 3 günde bir
+    const eskiVar = await env.DB.prepare("SELECT 1 FROM kullanicilar WHERE id = ?").bind(var_.kullanici).first();
+    if (eskiVar && simdi - son < TASIMA_ARASI_MS) {
+      return hata("Bu satın alma başka bir hesapta kullanılıyor. Kısa süre önce taşındığı için 3 gün sonra tekrar dene ya da bize yaz.", 409);
+    }
+  } else {
+    // İlk kez kaydediliyorsa, satın almayı bu hesabın başlatmış olması gerekir
+    const sahip = d.satin.obfuscatedExternalAccountId;
+    if (sahip && sahip !== ben.id) return hata("Bu satın alma başka bir hesaba ait", 409);
+  }
+  await env.DB.prepare(
+    `INSERT INTO satinalmalar (token, urun, kullanici, olusma, siparis, tasima) VALUES (?, '${URUN_TAM}', ?, ?, ?, NULL)
+     ON CONFLICT(token) DO UPDATE SET kullanici = excluded.kullanici, tasima = ?`
+  ).bind(token, ben.id, simdi, d.satin.orderId || null, simdi).run();
+  if (var_ && var_.kullanici && var_.kullanici !== ben.id) await tamHesapla(env, var_.kullanici);
+  await tamHesapla(env, ben.id);
+  return json({ tamam: true, tam: true });
+}
+
+/** Hediye: kime verilirse o kişiye anında Tam; verilmezse paylaşılacak bir kod üretilir. */
+async function hediyeVer(env, ctx, ben, g) {
+  const token = temizToken(g.token);
+  if (!token) return hata("Satın alma bilgisi eksik");
+  const simdi = Date.now();
+  const once = await env.DB.prepare("SELECT * FROM hediyeler WHERE token = ?").bind(token).first();
+  if (once) {
+    if (once.veren !== ben.id) return hata("Bu satın alma başka bir hesaba ait", 409);
+    const kimeAd = once.kullanan ? await env.DB.prepare("SELECT ad FROM kullanicilar WHERE id = ?").bind(once.kullanan).first() : null;
+    return json({ tamam: true, kod: once.kod, kullanildi: !!once.kullanan, kime: kimeAd ? kimeAd.ad : "", tekrar: true }); // tekrar gönderim: aynı sonuç
+  }
+
+  const kime = String(g.kime || "");
+  let o = null;
+  if (kime) {
+    if (!(await bagliMi(env, ben.id, kime))) return hata("Bu kişi listende yok", 404);
+    o = await env.DB.prepare("SELECT id, ad, token, tam FROM kullanicilar WHERE id = ?").bind(kime).first();
+    if (!o) return hata("Kişi bulunamadı", 404);
+  }
+  const d = await playDogrula(env, URUN_HEDIYE, token);
+  if (!d.ok) return dogrulamaHatasi(d);
+  const sahip = d.satin.obfuscatedExternalAccountId;
+  if (sahip && sahip !== ben.id) return hata("Bu satın alma başka bir hesaba ait", 409);
+
+  // Kişi bu arada Tam olduysa hediye boşa gitmesin: kod olarak verilir, başkasına iletilebilir
+  const kisiye = o && !o.tam;
+  const kod = await yeniKod(env);
+  await env.DB.batch([
+    env.DB.prepare("INSERT INTO hediyeler (kod, veren, token, kullanan, olusma) VALUES (?, ?, ?, ?, ?)").bind(kod, ben.id, token, kisiye ? o.id : null, simdi),
+    env.DB.prepare(`INSERT OR IGNORE INTO satinalmalar (token, urun, kullanici, olusma, siparis) VALUES (?, '${URUN_HEDIYE}', ?, ?, ?)`).bind(token, ben.id, simdi, d.satin.orderId || null),
+  ]);
+  if (kisiye) {
+    await tamHesapla(env, o.id);
+    ctx.waitUntil(bildirimGonder(env, o, { tip: "hediye", kimden: ben.id, ad: ben.ad }, 86400));
+    return json({ tamam: true, kime: o.ad });
+  }
+  return json({ tamam: true, kod, zatenTam: o ? o.ad : "" });
+}
+
+/** Verdiğim hediyeler: kod, kime ulaştığı, iade durumu */
+async function hediyelerim(env, ben) {
+  const l = await env.DB.prepare(
+    "SELECT h.kod, h.olusma, IFNULL(h.iptal,0) AS iptal, u.ad AS kullanan FROM hediyeler h LEFT JOIN kullanicilar u ON u.id = h.kullanan WHERE h.veren = ? ORDER BY h.olusma DESC LIMIT 50"
+  ).bind(ben.id).all();
+  return json({ hediyeler: (l.results || []).map((x) => ({ kod: x.kod, zaman: x.olusma, kullanan: x.kullanan || "", iptal: !!x.iptal })) });
+}
+
+async function yeniKod(env) {
+  for (let i = 0; i < 8; i++) {
+    const a = new Uint8Array(8);
+    crypto.getRandomValues(a);
+    const kod = "H" + [...a].map((x) => KOD_HARFLERI[x % KOD_HARFLERI.length]).join("").slice(0, 7);
+    const v = await env.DB.prepare("SELECT 1 FROM hediyeler WHERE kod = ?").bind(kod).first();
+    if (!v) return kod;
+  }
+  throw new Error("Hediye kodu üretilemedi");
+}
+
+async function hediyeKullan(env, ctx, ben, g, ip) {
+  const kod = String(g.kod || "").toUpperCase().replace(/[^0-9A-Z]/g, "");
+  if (kod.length !== 8) return hata("Hediye kodu 8 karakter olmalı (H ile başlar)");
+  if (await sinirAsildi(env, "hediye:" + ben.id, 5, 3600000, false) || await sinirAsildi(env, "hediye-ip:" + ip, 10, 3600000, false)) {
+    return hata("Çok fazla hatalı kod denendi. Bir saat sonra tekrar dene.", 429);
+  }
+  const h = await env.DB.prepare("SELECT * FROM hediyeler WHERE kod = ?").bind(kod).first();
+  if (!h) {
+    await hataliDeneme(env, "hediye:" + ben.id, "hediye-ip:" + ip);
+    return hata("Bu hediye kodu bulunamadı", 404);
+  }
+  if (h.iptal) return hata("Bu hediye iade edildiği için geçersiz", 410);
+  if (h.kullanan && h.kullanan !== ben.id) return hata("Bu hediye kodu daha önce kullanılmış", 409);
+  if (ben.tam && !h.kullanan) return hata("Sen zaten İyiyim Tam kullanıyorsun. Bu kodu Tam'ı olmayan bir yakınına ver.", 409);
+  await env.DB.prepare("UPDATE hediyeler SET kullanan = ? WHERE kod = ? AND kullanan IS NULL").bind(ben.id, kod).run();
+  await tamHesapla(env, ben.id);
+  const veren = await env.DB.prepare("SELECT id, ad, token FROM kullanicilar WHERE id = ?").bind(h.veren).first();
+  if (veren && !h.kullanan) ctx.waitUntil(bildirimGonder(env, veren, { tip: "hediyeKullanildi", kimden: ben.id, ad: ben.ad }, 86400));
+  return json({ tamam: true, veren: veren ? veren.ad : "" });
+}
+
+/** Google Play'in iade/iptal listesini okuyup ilgili Tam haklarını kapatır. */
+async function iadeleriIsle(env) {
+  const { hesap, hata: h } = hesapOku(env);
+  if (h) return;
+  const simdi = Date.now();
+  const kayit = await env.DB.prepare("SELECT deger FROM ayarlar WHERE ad = 'iade_son'").first();
+  // Google son 30 günü verir; bir gün örtüşmeyle en son baktığımız yerden başla
+  const baslangic = Math.max(simdi - 29 * 86400000, (kayit ? Number(kayit.deger) : 0) - 86400000);
+  let sayfa = "";
+  let islenen = 0;
+  try {
+    const jeton = await googleJetonu(hesap, "https://www.googleapis.com/auth/androidpublisher");
+    for (let i = 0; i < 20; i++) {
+      const u = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PAKET}/purchases/voidedpurchases?startTime=${baslangic}&maxResults=1000` + (sayfa ? "&token=" + encodeURIComponent(sayfa) : "");
+      const r = await fetch(u, { headers: { Authorization: "Bearer " + jeton } });
+      if (!r.ok) {
+        console.error("İade listesi alınamadı", r.status, (await r.text()).slice(0, 300));
+        return;
+      }
+      const v = await r.json();
+      for (const x of v.voidedPurchases || []) {
+        await satinAlmaIptal(env, x.purchaseToken);
+        islenen++;
+      }
+      sayfa = v.tokenPagination && v.tokenPagination.nextPageToken;
+      if (!sayfa) break;
+    }
+    await env.DB.prepare("INSERT INTO ayarlar (ad, deger) VALUES ('iade_son', ?) ON CONFLICT(ad) DO UPDATE SET deger = excluded.deger").bind(String(simdi)).run();
+    console.log("İade kontrolü tamam:", islenen);
+  } catch (e) {
+    console.error("İade kontrolü", e && e.message);
+  }
+}
+
+async function satinAlmaIptal(env, token) {
+  if (!token) return;
+  const s = await env.DB.prepare("SELECT * FROM satinalmalar WHERE token = ?").bind(token).first();
+  const h = await env.DB.prepare("SELECT * FROM hediyeler WHERE token = ?").bind(token).first();
+  if (s) await env.DB.prepare("UPDATE satinalmalar SET iptal = 1 WHERE token = ?").bind(token).run();
+  if (h) await env.DB.prepare("UPDATE hediyeler SET iptal = 1 WHERE token = ?").bind(token).run();
+  if (s && s.urun === URUN_TAM) await tamHesapla(env, s.kullanici);
+  if (h && h.kullanan) await tamHesapla(env, h.kullanan);
+}
+
 function konumTemizle(k, simdi) {
   if (!k || !isFinite(k.lat) || !isFinite(k.lng)) return null;
   return {
@@ -267,6 +547,7 @@ async function temizlik(env) {
   await env.DB.batch([
     env.DB.prepare("DELETE FROM sorular WHERE zaman < ?").bind(simdi - SAKLAMA_MS),
     env.DB.prepare("DELETE FROM davetler WHERE bitis < ?").bind(simdi),
+    env.DB.prepare("DELETE FROM sinirlar WHERE zaman < ?").bind(simdi - 86400000),
   ]);
 }
 
@@ -289,8 +570,7 @@ async function hesapSil(env, ben) {
 }
 
 // ---------- Firebase Cloud Messaging ----------
-let googleErisim = null;
-let googleBitis = 0;
+const googleErisim = {}; // kapsam -> { jeton, bitis }
 
 function b64url(bayt) {
   let s = "";
@@ -304,13 +584,14 @@ function pemdenBayt(pem) {
   return a.buffer;
 }
 
-async function googleJetonu(hesap) {
-  if (googleErisim && Date.now() < googleBitis - 60000) return googleErisim;
+async function googleJetonu(hesap, kapsam = "https://www.googleapis.com/auth/firebase.messaging") {
+  const k = googleErisim[kapsam];
+  if (k && Date.now() < k.bitis - 60000) return k.jeton;
   const simdi = Math.floor(Date.now() / 1000);
   const kodla = (o) => b64url(new TextEncoder().encode(JSON.stringify(o)));
   const imzasiz = kodla({ alg: "RS256", typ: "JWT" }) + "." + kodla({
     iss: hesap.client_email,
-    scope: "https://www.googleapis.com/auth/firebase.messaging",
+    scope: kapsam,
     aud: "https://oauth2.googleapis.com/token",
     iat: simdi,
     exp: simdi + 3600,
@@ -327,9 +608,8 @@ async function googleJetonu(hesap) {
   });
   const v = await r.json();
   if (!v.access_token) throw new Error("Google jetonu alınamadı: " + JSON.stringify(v));
-  googleErisim = v.access_token;
-  googleBitis = Date.now() + (v.expires_in || 3600) * 1000;
-  return googleErisim;
+  googleErisim[kapsam] = { jeton: v.access_token, bitis: Date.now() + (v.expires_in || 3600) * 1000 };
+  return v.access_token;
 }
 
 /** FCM_HESAP'ı okur ve doğrular. Sorun varsa { hata } döner. */

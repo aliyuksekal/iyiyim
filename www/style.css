@@ -328,3 +328,43 @@ a.ayar-satir { color: inherit; text-decoration: none; }
 .sag-dugmeler { display: flex; align-items: center; gap: 8px; }
 .ara-yuvarlak { width: 48px; height: 48px; border-radius: 50%; background: var(--tehlike); color: #fff; display: grid; place-items: center; flex-shrink: 0; }
 .ara-yuvarlak svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- İyiyim Tam ---------- */
+:root { --tam: #FFC857; --tam-zemin: rgba(255, 200, 87, .13); --tam-yazi: #1B1300; }
+@media (prefers-color-scheme: light) { :root:not([data-tema="koyu"]) { --tam: #B7791F; --tam-zemin: rgba(183, 121, 31, .12); --tam-yazi: #FFFFFF; } }
+:root[data-tema="acik"] { --tam: #B7791F; --tam-zemin: rgba(183, 121, 31, .12); --tam-yazi: #FFFFFF; }
+:root[data-tema="koyu"] { --tam: #FFC857; --tam-zemin: rgba(255, 200, 87, .13); --tam-yazi: #1B1300; }
+
+.tam-sayfa { text-align: center; }
+.tam-rozet { width: 72px; height: 72px; border-radius: 22px; background: var(--tam-zemin); display: grid; place-items: center; justify-self: center; margin: 4px auto 0; }
+.tam-rozet svg { width: 40px; height: 40px; fill: var(--tam); }
+.tam-rozet svg .tik { fill: none; stroke: var(--zemin); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.tam-neden { color: var(--soluk); margin: 0 0 4px; font-size: 15.5px; text-wrap: balance; }
+.tam-liste { list-style: none; padding: 0; margin: 6px 0 4px; display: grid; gap: 10px; text-align: left; }
+.tam-liste li { position: relative; padding-left: 32px; color: var(--soluk); font-size: 14.5px; line-height: 1.45; }
+.tam-liste li b { color: var(--yazi); font-weight: 600; display: block; font-size: 15.5px; }
+.tam-liste li::before { content: ""; position: absolute; left: 0; top: 1px; width: 22px; height: 22px; border-radius: 50%; background: var(--iyi-zemin); }
+.tam-liste li::after { content: ""; position: absolute; left: 4px; top: 5px; width: 14px; height: 14px; background: var(--iyi); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 4.5 4.5L19 7'/%3E%3C/svg%3E") center/contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 4.5 4.5L19 7'/%3E%3C/svg%3E") center/contain no-repeat; }
+.tam-al { min-height: 58px; font-size: 17px; margin-top: 8px; }
+.dugme-hediye { background: var(--tam-zemin); color: var(--tam); border: 1px solid color-mix(in srgb, var(--tam) 35%, transparent); font-weight: 700; }
+.tam-ucretsiz { text-align: center; margin: 2px 0 0; }
+.satir-baglantilar { display: flex; justify-content: center; gap: 18px; flex-wrap: wrap; }
+.satir-baglantilar .metin-dugme { color: var(--soluk); font-size: 14px; }
+.tam-baglanti { border: 0; background: var(--tam-zemin); color: var(--tam); font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 999px; }
+.tam-ayar .ayar-satir.vurgulu em { color: var(--tam); }
+.tam-ayar .ayar-satir em.tamam { color: var(--iyi); }
+.kisi-tam { font-size: 14px; color: var(--soluk); background: var(--yuzey-2); border-radius: 12px; padding: 10px 12px; }
+.kisi-tam b { color: var(--tam); }
+.sor-dugme.kilitli::after { content: " ★"; color: var(--tam); }
+
+.hediye-liste { display: grid; gap: 8px; margin: 6px 0; }
+.hediye-secenek { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 14px; border-radius: 14px; border: 1.5px solid var(--cizgi); background: var(--yuzey); color: var(--yazi); font-size: 16px; }
+.hediye-secenek small { display: block; color: var(--soluk); font-size: 13px; margin-top: 2px; }
+.hediye-secenek .nokta { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--cizgi); flex: none; }
+.hediye-secenek.secili { border-color: var(--tam); background: var(--tam-zemin); }
+.hediye-secenek.secili .nokta { border-color: var(--tam); background: radial-gradient(circle, var(--tam) 45%, transparent 50%); }
+.hediye-secenek:disabled { opacity: .5; }
+.hediye-kutlama { font-size: 52px; text-align: center; animation: atis 1.6s ease-in-out infinite; }
+.hediye-sonuc-metin { text-align: center; font-size: 16px; line-height: 1.5; }
+.hediye-kod { font: 700 30px/1 ui-monospace, monospace; letter-spacing: 4px; text-align: center; padding: 18px; border-radius: 16px; background: var(--tam-zemin); color: var(--tam); user-select: all; }
+.kod-girdi { text-transform: uppercase; letter-spacing: 3px; font-size: 22px; text-align: center; }
