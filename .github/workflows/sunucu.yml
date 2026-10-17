@@ -1,0 +1,56 @@
+name: Sunucuyu güncelle
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "sunucu/**"
+      - ".github/workflows/sunucu.yml"
+  workflow_dispatch:
+
+jobs:
+  yayinla:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: d004cde58ae5e700047da8084c539b21
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Anahtar var mı?
+        id: kontrol
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN gizli değişkeni yok; sunucu otomatik güncellenmedi."
+            echo "var=hayir" >> "$GITHUB_OUTPUT"
+          else
+            echo "var=evet" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Veritabanı kimliğini bul
+        if: steps.kontrol.outputs.var == 'evet'
+        run: |
+          yanit=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database?name=iyiyim")
+          id=$(echo "$yanit" | jq -r '.result[] | select(.name=="iyiyim") | .uuid' | head -1)
+          if [ -z "$id" ] || [ "$id" = "null" ]; then
+            echo "::error::'iyiyim' D1 veritabanı bulunamadı. API anahtarında 'D1: Edit' izni var mı? Yanıt: $yanit"
+            exit 1
+          fi
+          sed -i "s/database_id = \"OTOMATIK\"/database_id = \"$id\"/" sunucu/wrangler.toml
+          echo "Veritabanı: $id"
+
+      - name: Cloudflare'e yükle
+        if: steps.kontrol.outputs.var == 'evet'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: d004cde58ae5e700047da8084c539b21
+          workingDirectory: sunucu
+          command: deploy
+
+      - name: Kontrol
+        if: steps.kontrol.outputs.var == 'evet'
+        run: |
+          sleep 5
+          curl -sS https://iyiyim.aliyuksekal.workers.dev/

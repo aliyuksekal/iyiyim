@@ -1,8 +1,15 @@
+# GitHub Actions bu dosyayla sunucuyu Cloudflare'e yükler (bkz. .github/workflows/sunucu.yml).
+# database_id derleme sırasında Cloudflare'den otomatik bulunur.
 name = "iyiyim"
 main = "worker.js"
 compatibility_date = "2025-06-01"
+workers_dev = true
+keep_vars = true
+
+[observability]
+enabled = true
 
 [[d1_databases]]
 binding = "DB"
 database_name = "iyiyim"
-database_id = "BURAYA-D1-ID"
+database_id = "OTOMATIK"

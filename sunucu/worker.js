@@ -4,6 +4,7 @@
 //   Gizli değişken:     FCM_HESAP  -> Firebase hizmet hesabı JSON dosyasının tamamı
 // Tablolar ilk istekte kendiliğinden kurulur.
 
+const SUNUCU_SURUM = "1.3";
 const SORU_ARASI_MS = 0;                   // "İyi misin?" için bekleme süresi yok
 const DAVET_SURESI_MS = 24 * 60 * 60 * 1000; // davet kodu 24 saat geçerli
 const KOD_HARFLERI = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -55,7 +56,7 @@ export default {
       const yol = new URL(istek.url).pathname.replace(/\/+$/, "") || "/";
       const govde = istek.method === "POST" ? await istek.json().catch(() => ({})) : {};
 
-      if (yol === "/" ) return json({ uygulama: "iyiyim", durum: "calisiyor" });
+      if (yol === "/" ) return json({ uygulama: "iyiyim", durum: "calisiyor", surum: SUNUCU_SURUM });
       if (Math.random() < 0.02) ctx.waitUntil(temizlik(env));
       if (yol === "/kayit" && istek.method === "POST") return kayit(env, govde);
 
