@@ -46,6 +46,7 @@ NASIL ÇALIŞIR
 • Yüksek sesli tonlar: 5 farklı ton arasından seç, telefon sessizde olsa bile duy.
 • Operatör gerekmez: SMS ya da hat kullanmaz. İnternet olan her yerde, Wi-Fi'da bile çalışır.
 • İnternet yoksa bekletir: Verdiğin cevap internet gelince kendiliğinden gönderilir.
+• Ana ekran düğmesi: Uygulamayı açmadan, ana ekrandan tek dokunuşla “İyiyim” de ya da yardım iste.
 • Yaşlılar için kolay: Kocaman düğmeler, sade ekran.
 • Yardım iste: Kimse sormadan, tek dokunuşla tüm yakınlarına yardım isteğini ve konumunu gönder.
 • Koyu ve açık görünüm.

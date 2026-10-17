@@ -26,6 +26,7 @@
       cevapSirala: async () => ({}),
       cihaz: async () => ({ marka: "Xiaomi", model: "Redmi Note 12", sdk: 34, surum: "14" }),
       tamEkranAyari: async () => ({}),
+      widgetEkle: async () => ({ destek: false }),
       konumIzni: async () => ({ durum: "granted" }),
       konumAl: async () => ({ lat: 41.0082, lng: 28.9784, hassas: 15, zaman: Date.now() }),
       tonSec: async (o) => ({ ton: o.ton }),
@@ -796,6 +797,9 @@
         await Iyiyim.pilAyari();
       } else if (tur === "alarm") {
         await Iyiyim.alarmAyari();
+      } else if (tur === "widget") {
+        const r = await Iyiyim.widgetEkle();
+        if (!r.destek) tost("Ana ekranda boş bir yere basılı tut → Widget'lar → İyiyim'i sürükle", 6000);
       } else if (tur === "tamekran") {
         await Iyiyim.tamEkranAyari();
       } else if (tur === "konum") {

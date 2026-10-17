@@ -78,6 +78,19 @@ const bilesenler = `
             android:turnScreenOn="true"
             android:screenOrientation="portrait"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+        <activity
+            android:name=".YardimActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity="com.matali.iyiyim.yardim"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <receiver android:name=".IyiyimWidget" android:exported="true" android:label="İyiyim">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/iyiyim_widget" />
+        </receiver>
         <service android:name=".MesajServisi" android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_zemin">#F2FFFFFF</color>
+    <color name="widget_soluk">#5A6A64</color>
+    <string name="widget_aciklama">Tek dokunuşla herkese “İyiyim” de ya da konumunla yardım iste</string>
+</resources>

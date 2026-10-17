@@ -88,6 +88,7 @@ public class IyiyimPlugin extends Plugin {
                 .putString("id", call.getString("id", ""))
                 .putString("sifre", call.getString("sifre", ""))
                 .apply();
+        IyiyimWidget.ciz(getContext());
         call.resolve();
     }
 
@@ -312,6 +313,21 @@ public class IyiyimPlugin extends Plugin {
             r.put("mesaj", mesaj);
             call.resolve(r);
         });
+    }
+
+    /** Ana ekrana İyiyim düğmesini (widget) eklemeyi önerir; destekleyen telefonlarda tek dokunuşla eklenir. */
+    @PluginMethod
+    public void widgetEkle(PluginCall call) {
+        JSObject r = new JSObject();
+        boolean destek = false;
+        if (Build.VERSION.SDK_INT >= 26) {
+            android.appwidget.AppWidgetManager m = getContext().getSystemService(android.appwidget.AppWidgetManager.class);
+            if (m != null && m.isRequestPinAppWidgetSupported()) {
+                destek = m.requestPinAppWidget(new android.content.ComponentName(getContext(), IyiyimWidget.class), null, null);
+            }
+        }
+        r.put("destek", destek);
+        call.resolve(r);
     }
 
     @PluginMethod
