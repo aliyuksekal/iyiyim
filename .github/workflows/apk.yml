@@ -1,0 +1,99 @@
+name: İyiyim derleme
+
+on:
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - "docs/**"
+      - "magaza/**"
+      - "*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  derle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Paketleri kur
+        run: npm install --no-audit --no-fund
+
+      - name: google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ ! -f google-services.json ] && [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > google-services.json
+          fi
+          if [ ! -f google-services.json ]; then
+            echo "::warning::google-services.json bulunamadı. Uygulama açılır ama bildirimler çalışmaz."
+          fi
+
+      - name: Yayın imzası
+        env:
+          IMZA_SIFRE: ${{ secrets.IMZA_SIFRE }}
+        run: |
+          # Anahtar dosyası depoda şifreli durur; şifresi yalnızca GitHub gizli değişkeninde.
+          if [ -f imza/iyiyim-yukleme.p12 ] && [ -n "$IMZA_SIFRE" ]; then
+            echo "IMZA_DOSYASI=$GITHUB_WORKSPACE/imza/iyiyim-yukleme.p12" >> "$GITHUB_ENV"
+            echo "IMZA_SIFRE=$IMZA_SIFRE" >> "$GITHUB_ENV"
+            echo "IMZA_ALIAS=iyiyim" >> "$GITHUB_ENV"
+            echo "İmzalı yayın derlemesi yapılacak."
+          else
+            echo "::warning::IMZA_SIFRE gizli değişkeni yok, test imzasıyla derlenecek."
+            mkdir -p ~/.android
+            cp imza/test.keystore ~/.android/debug.keystore
+          fi
+
+      - name: Android projesini oluştur
+        run: |
+          npx cap add android
+          node scripts/android-yamala.js
+          npx cap sync android
+
+      - name: Derle
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          if [ -n "$IMZA_DOSYASI" ]; then
+            ./gradlew assembleRelease bundleRelease --no-daemon --stacktrace
+          else
+            ./gradlew assembleDebug --no-daemon --stacktrace
+          fi
+
+      - name: Çıktıları adlandır
+        run: |
+          mkdir -p cikti
+          N=${{ github.run_number }}
+          if [ -n "$IMZA_DOSYASI" ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk "cikti/Iyiyim-1.0.$N.apk"
+            cp android/app/build/outputs/bundle/release/app-release.aab "cikti/Iyiyim-1.0.$N-play.aab"
+          else
+            cp android/app/build/outputs/apk/debug/app-debug.apk "cikti/Iyiyim-1.0.$N-test.apk"
+          fi
+          ls -la cikti
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Iyiyim-1.0.${{ github.run_number }}
+          path: cikti/*
+
+      - name: İndirme linki (Releases)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: İyiyim 1.0.${{ github.run_number }}
+          prerelease: true
+          files: cikti/*

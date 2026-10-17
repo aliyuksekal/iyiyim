@@ -1,0 +1,17 @@
+{
+  "name": "iyiyim",
+  "version": "1.0.0",
+  "private": true,
+  "description": "İyiyim — sevdiklerine tek dokunuşla 'İyi misin?' diye sor",
+  "author": "matali",
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/share": "^7.0.0",
+    "@capacitor/status-bar": "^7.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.0"
+  }
+}

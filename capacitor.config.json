@@ -1,0 +1,16 @@
+{
+  "appId": "com.matali.iyiyim",
+  "appName": "İyiyim",
+  "webDir": "www",
+  "android": {
+    "adjustMarginsForEdgeToEdge": "auto",
+    "backgroundColor": "#0B0F14"
+  },
+  "plugins": {
+    "StatusBar": {
+      "overlaysWebView": false,
+      "style": "DARK",
+      "backgroundColor": "#0B0F14"
+    }
+  }
+}
