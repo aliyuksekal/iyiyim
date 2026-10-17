@@ -38,7 +38,7 @@ jobs:
             exit 1
           fi
           sed -i "s/database_id = \"OTOMATIK\"/database_id = \"$id\"/" sunucu/wrangler.toml
-          echo "Veritabanı: $id"
+          echo "::notice title=Veritabanı::$id"
 
       - name: Cloudflare'e yükle
         if: steps.kontrol.outputs.var == 'evet'
@@ -52,5 +52,13 @@ jobs:
       - name: Kontrol
         if: steps.kontrol.outputs.var == 'evet'
         run: |
-          sleep 5
-          curl -sS https://iyiyim.aliyuksekal.workers.dev/
+          sleep 8
+          yanit=$(curl -sS "https://iyiyim.aliyuksekal.workers.dev/?t=$(date +%s)")
+          echo "::notice title=Sunucu yanıtı::$yanit"
+          beklenen=$(grep -o 'SUNUCU_SURUM = "[^"]*"' sunucu/worker.js | cut -d'"' -f2)
+          if echo "$yanit" | grep -q "\"surum\":\"$beklenen\""; then
+            echo "::notice title=Sunucu güncel::Sürüm $beklenen yayında"
+          else
+            echo "::error title=Sunucu güncellenmedi::Beklenen sürüm $beklenen, gelen: $yanit"
+            exit 1
+          fi

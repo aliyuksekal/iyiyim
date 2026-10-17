@@ -6,6 +6,8 @@ on:
     paths-ignore:
       - "docs/**"
       - "magaza/**"
+      - "sunucu/**"
+      - ".github/workflows/sunucu.yml"
       - "*.md"
   workflow_dispatch:
 
