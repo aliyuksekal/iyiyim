@@ -324,3 +324,7 @@ a.ayar-satir { color: inherit; text-decoration: none; }
 .hizli-dugme.yardim.onay { background: var(--tehlike); color: #fff; animation: nabiz-kutu 1s ease-in-out infinite; }
 @keyframes nabiz-kutu { 50% { transform: scale(1.03); } }
 .selam { margin: 18px 0 12px; }
+
+.sag-dugmeler { display: flex; align-items: center; gap: 8px; }
+.ara-yuvarlak { width: 48px; height: 48px; border-radius: 50%; background: var(--tehlike); color: #fff; display: grid; place-items: center; flex-shrink: 0; }
+.ara-yuvarlak svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }

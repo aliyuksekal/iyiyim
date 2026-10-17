@@ -178,13 +178,10 @@
     $("#kisi-liste").innerHTML = liste.map((k) => {
       const d = durumHesapla(k);
       const tel = telefonlar[k.id];
-      let sag;
+      // "İyi mi?" her zaman var; acil durumda yanında arama düğmesi de çıkar
+      let sag = `<button class="sor-dugme" data-sor="${kacis(k.id)}">İyi mi?</button>`;
       if ((d.sinif === "durum-yardim" || d.sinif === "durum-cevapsiz") && tel) {
-        sag = `<a class="sor-dugme ara" href="tel:${kacis(tel.replace(/[^0-9+]/g, ""))}">${ARA_SVG}Ara</a>`;
-      } else if (d.kilit > 0) {
-        sag = `<button class="sor-dugme bekliyor" disabled aria-label="${kalanMetin(d.kilit)} sonra tekrar sorabilirsin">${kalanMetin(d.kilit)}</button>`;
-      } else {
-        sag = `<button class="sor-dugme" data-sor="${kacis(k.id)}">İyi mi?</button>`;
+        sag = `<div class="sag-dugmeler"><a class="ara-yuvarlak" aria-label="${kacis(k.ad)} kişisini ara" href="tel:${kacis(tel.replace(/[^0-9+]/g, ""))}">${ARA_SVG}</a>${sag}</div>`;
       }
       return `
         <div class="kisi ${d.sinif}">
