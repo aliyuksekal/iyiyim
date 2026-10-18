@@ -258,7 +258,7 @@ public class IyiyimPlugin extends Plugin {
     }
 
     private void konumuGetir(PluginCall call) {
-        Konum.al(getContext(), k -> {
+        Konum.al(getActivity() != null ? getActivity() : getContext(), k -> {
             try {
                 call.resolve(k == null ? new JSObject() : JSObject.fromJSONObject(k));
             } catch (Exception e) {
