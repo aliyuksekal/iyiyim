@@ -53,7 +53,7 @@ NASIL ÇALIŞIR
 • Kişi ekle: 6 haneli kodunu paylaş, karşı taraf girsin. Telefon numarası gerekmez.
 • Sor: Kişinin yanındaki “İyi mi?” düğmesine dokun.
 • Cevap: Karşı tarafa bildirim gider. “İyiyim”, “Sonra ararım” ya da “Yardım lazım” düğmesine dokunması yeter.
-• Alarm: Cevap gelmezse (15 dakika ile 3 saat arası, sen seçersin) telefonun alarm sesiyle uyarır. “Yardım lazım” denirse hiç beklemeden çalar.
+• Alarm: Cevap gelmezse (15 dakika ile 4 saat arası, sen seçersin) telefonun alarm sesiyle uyarır. “Yardım lazım” denirse hiç beklemeden çalar.
 
 ÖNE ÇIKANLAR
 • Yardım lazım: Tek dokunuşla yardım iste; o anki konumun soran kişiye gider, haritada açar.
@@ -65,7 +65,8 @@ NASIL ÇALIŞIR
 • Ana ekran düğmesi: Uygulamayı açmadan, ana ekrandan tek dokunuşla “İyiyim” de ya da yardım iste.
 • Yaşlılar için kolay: Kocaman düğmeler, sade ekran.
 • Yardım iste: Kimse sormadan, tek dokunuşla tüm yakınlarına yardım isteğini ve konumunu gönder.
-• Koyu ve açık görünüm.
+• Bildirim geçmişi: Son 24 saatte kim sordu, kim ne cevap verdi, hepsi tek ekranda.
+• 7 dil, koyu ve açık görünüm.
 
 ÜCRETSİZ VE İYİYİM TAM
 • İndirmek, gelen sorulara cevap vermek ve “Yardım iste” herkes için her zaman ücretsiz.
