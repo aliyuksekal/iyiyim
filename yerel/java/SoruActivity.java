@@ -82,7 +82,7 @@ public class SoruActivity extends Activity {
         if (Konum.izinVar(this)) {
             konumlaGonder();
         } else if (Build.VERSION.SDK_INT >= 23) {
-            SoruGorunumu.durumYaz(kok, "Konumunu göndermek için izin ver…");
+            SoruGorunumu.durumYaz(kok, Ortak.s(this, R.string.soru_konum_izin));
             requestPermissions(new String[]{
                     Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION}, KONUM_ISTEGI);
@@ -100,7 +100,7 @@ public class SoruActivity extends Activity {
     }
 
     private void konumlaGonder() {
-        SoruGorunumu.durumYaz(kok, "Konumun alınıyor ve yardım isteğin gönderiliyor…");
+        SoruGorunumu.durumYaz(kok, Ortak.s(this, R.string.soru_konum_aliniyor));
         Konum.al(this, konum -> runOnUiThread(() -> gonder("yardim", konum)));
     }
 

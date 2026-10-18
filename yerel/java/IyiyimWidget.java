@@ -3,11 +3,16 @@ package com.matali.iyiyim;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.SizeF;
+import android.view.View;
 import android.widget.RemoteViews;
 
 import org.json.JSONArray;
@@ -15,11 +20,16 @@ import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Ana ekran düğmesi: uygulamayı açmadan herkese "İyiyim" de ya da konumla yardım iste.
  * Yaşlılar için iki büyük düğme; "Yardım iste" yanlışlıkla basılmasın diye iki dokunuş ister.
+ *
+ * Boyuta göre üç düzen: küçük (yalnız iki düğme), orta (+ tek satır haber), büyük (+ kayan haberler).
+ * Düğme yayınları dışa kapalı {@link WidgetAlici}'ya gider; başka uygulamalar tetikleyemez.
  */
 public class IyiyimWidget extends AppWidgetProvider {
 
@@ -27,6 +37,10 @@ public class IyiyimWidget extends AppWidgetProvider {
     static final String YARDIM = "com.matali.iyiyim.WIDGET_YARDIM";
     static final String SIFIRLA = "com.matali.iyiyim.WIDGET_SIFIRLA";
     private static final long ONAY_SURESI = 5000;
+    /** Kayan satırda en fazla bu kadar eski haber gösterilir. */
+    private static final long HABER_OMRU = 4L * 60 * 60 * 1000;
+
+    private static final int KUCUK = 0, ORTA = 1, BUYUK = 2;
 
     @Override
     public void onUpdate(Context c, AppWidgetManager m, int[] idler) {
@@ -34,8 +48,13 @@ public class IyiyimWidget extends AppWidgetProvider {
     }
 
     @Override
+    public void onAppWidgetOptionsChanged(Context c, AppWidgetManager m, int id, Bundle yeni) {
+        ciz(c);
+    }
+
+    @Override
     public void onEnabled(Context c) {
-        // "5 DK ÖNCE" yazıları eskimesin diye widget 15 dakikada bir tazelenir
+        // "5 dk önce" yazıları eskimesin ve 4 saati geçen haberler düşsün diye 15 dakikada bir tazelenir
         android.app.AlarmManager am = (android.app.AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
         if (am != null) am.setInexactRepeating(android.app.AlarmManager.RTC, System.currentTimeMillis() + 900000L,
                 android.app.AlarmManager.INTERVAL_FIFTEEN_MINUTES, yayin(c, SIFIRLA, 7005));
@@ -91,55 +110,45 @@ public class IyiyimWidget extends AppWidgetProvider {
         ciz(c);
     }
 
-    private static String once(long zaman) {
+    private static String once(Context c, long zaman) {
         long dk = Math.max(0, (System.currentTimeMillis() - zaman) / 60000);
-        if (dk < 1) return "ŞİMDİ";
-        if (dk < 60) return dk + " DK ÖNCE";
-        long sa = dk / 60;
-        return sa + " SAAT ÖNCE";
+        if (dk < 1) return Ortak.s(c, R.string.w_simdi);
+        if (dk < 60) return Ortak.s(c, R.string.w_dk_once, (int) dk);
+        return Ortak.s(c, R.string.w_sa_once, (int) (dk / 60));
     }
 
-    private static final int YESIL = 0xFF2BC48F, KIRMIZI = 0xFFE5484D, SARI = 0xFFE0A030;
-
-    private static void akisDoldur(Context c, RemoteViews v) {
-        v.removeAllViews(R.id.w_akis);
-        Locale tr = new Locale("tr");
-        int eklenen = 0;
+    /** Son 4 saatin haberleri, en yeni önce: {metin, renk} */
+    private static java.util.List<Object[]> haberler(Context c) {
+        java.util.List<Object[]> l = new java.util.ArrayList<>();
+        Locale yer = Ortak.yerelAyar(c);
+        int yesil = c.getColor(R.color.w_iyi), kirmizi = c.getColor(R.color.w_tehlike), sari = c.getColor(R.color.w_bekle);
         try {
-            JSONArray l = new JSONArray(Ortak.tercih(c).getString("widget_olaylar", "[]"));
-            long gun = System.currentTimeMillis() - 24L * 60 * 60 * 1000;
-            for (int i = 0; i < l.length() && eklenen < 5; i++) {
-                JSONObject o = l.getJSONObject(i);
+            JSONArray a = new JSONArray(Ortak.tercih(c).getString("widget_olaylar", "[]"));
+            long sinir = System.currentTimeMillis() - HABER_OMRU;
+            for (int i = 0; i < a.length() && l.size() < 5; i++) {
+                JSONObject o = a.getJSONObject(i);
                 long z = o.optLong("zaman");
-                if (z < gun) continue;
-                String ad = o.optString("ad").toUpperCase(tr);
-                String tur = o.optString("tur");
+                if (z < sinir) continue;
+                String ad = o.optString("ad");
+                String ne = once(c, z);
                 String metin;
                 int renk;
-                switch (tur) {
-                    case "yardim": metin = once(z) + " " + ad + " YARDIM İSTEDİ"; renk = KIRMIZI; break;
-                    case "sonra": metin = once(z) + " " + ad + " SONRA ARAYACAK"; renk = SARI; break;
-                    case "ben_iyi": metin = once(z) + " SEN “İYİYİM” DEDİN"; renk = YESIL; break;
-                    case "ben_yardim": metin = once(z) + " YARDIM İSTEDİN"; renk = KIRMIZI; break;
-                    default: metin = once(z) + " " + ad + " İYİYİM DEDİ"; renk = YESIL;
+                switch (o.optString("tur")) {
+                    case "yardim": metin = Ortak.s(c, R.string.w_ak_yardim, ne, ad); renk = kirmizi; break;
+                    case "sonra": metin = Ortak.s(c, R.string.w_ak_sonra, ne, ad); renk = sari; break;
+                    case "ben_iyi": metin = Ortak.s(c, R.string.w_ak_ben_iyi, ne); renk = yesil; break;
+                    case "ben_yardim": metin = Ortak.s(c, R.string.w_ak_ben_yardim, ne); renk = kirmizi; break;
+                    default: metin = Ortak.s(c, R.string.w_ak_iyi, ne, ad); renk = yesil;
                 }
-                RemoteViews satir = new RemoteViews(c.getPackageName(), R.layout.widget_akis_satir);
-                satir.setTextViewText(R.id.w_satir, metin);
-                satir.setTextColor(R.id.w_satir, renk);
-                v.addView(R.id.w_akis, satir);
-                eklenen++;
+                l.add(new Object[]{metin.toUpperCase(yer), renk});
             }
         } catch (Exception ignored) {}
-        if (eklenen == 0) {
-            RemoteViews satir = new RemoteViews(c.getPackageName(), R.layout.widget_akis_satir);
-            satir.setTextViewText(R.id.w_satir, "TEK DOKUNUŞLA HABER VER");
-            v.addView(R.id.w_akis, satir);
-        }
+        return l;
     }
 
-    @Override
-    public void onReceive(Context context, Intent intent) {
-        super.onReceive(context, intent);
+    // ---------------- düğme olayları (WidgetAlici'dan gelir) ----------------
+
+    static void eylem(BroadcastReceiver alici, Context context, Intent intent) {
         final Context c = context.getApplicationContext();
         String e = intent.getAction();
         if (e == null) return;
@@ -150,8 +159,8 @@ public class IyiyimWidget extends AppWidgetProvider {
         }
 
         if (IYI.equals(e)) {
-            durumYaz(c, "Gönderiliyor…");
-            final PendingResult sonuc = goAsync();
+            durumYaz(c, Ortak.s(c, R.string.gonderiliyor));
+            final BroadcastReceiver.PendingResult sonuc = alici.goAsync();
             new Thread(() -> {
                 try {
                     JSONObject g = new JSONObject();
@@ -160,20 +169,20 @@ public class IyiyimWidget extends AppWidgetProvider {
                     int kod = (Integer) r[0];
                     if (kod >= 200 && kod < 300) {
                         int kisi = new JSONObject((String) r[1]).optInt("kisi", 0);
-                        olayEkle(c, "ben", "Sen", "ben_iyi", System.currentTimeMillis());
-                        durumYaz(c, "✓ " + kisi + " kişiye gitti");
+                        olayEkle(c, "ben", "", "ben_iyi", System.currentTimeMillis());
+                        durumYaz(c, Ortak.s(c, R.string.w_gitti, kisi));
                     } else if (kod == 402) {
                         Ortak.tercih(c).edit().putBoolean("tam_goster", true).apply();
-                        durumYaz(c, "İyiyim Tam gerekli · uygulamayı aç");
+                        durumYaz(c, Ortak.s(c, R.string.w_tam_gerekli));
                     } else if (kod == 429) {
-                        durumYaz(c, "Az önce bildirdin, biraz sonra tekrar dene");
+                        durumYaz(c, Ortak.s(c, R.string.w_az_once));
                     } else if (kod == -1) {
-                        durumYaz(c, "İnternet yok, bağlanınca tekrar dokun");
+                        durumYaz(c, Ortak.s(c, R.string.w_internet_yok));
                     } else {
-                        durumYaz(c, "Gönderilemedi, tekrar dokun");
+                        durumYaz(c, Ortak.s(c, R.string.w_gonderilemedi));
                     }
                 } catch (Exception ex) {
-                    durumYaz(c, "Gönderilemedi, tekrar dokun");
+                    durumYaz(c, Ortak.s(c, R.string.w_gonderilemedi));
                 } finally {
                     sonuc.finish();
                 }
@@ -182,7 +191,7 @@ public class IyiyimWidget extends AppWidgetProvider {
             // 1. dokunuş: onay iste. 2. dokunuş (5 sn içinde) YardimActivity'yi açar.
             Ortak.tercih(c).edit().putLong("widget_onay", System.currentTimeMillis()).apply();
             ciz(c);
-            final PendingResult sonuc = goAsync();
+            final BroadcastReceiver.PendingResult sonuc = alici.goAsync();
             new Handler(Looper.getMainLooper()).postDelayed(() -> {
                 ciz(c);
                 sonuc.finish();
@@ -204,7 +213,7 @@ public class IyiyimWidget extends AppWidgetProvider {
     }
 
     static String saat() {
-        return new SimpleDateFormat("HH:mm", new Locale("tr")).format(new Date());
+        return new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
     }
 
     /** Kısa süreli bilgi satırı (Gönderiliyor…, hata vb.); 20 saniye görünür. */
@@ -214,34 +223,84 @@ public class IyiyimWidget extends AppWidgetProvider {
         new Handler(Looper.getMainLooper()).postDelayed(() -> ciz(c), 21000);
     }
 
+    /** Düğme yayınları yalnızca uygulamanın kendi (dışa kapalı) alıcısına gider. */
     private static PendingIntent yayin(Context c, String eylem, int no) {
-        Intent i = new Intent(c, IyiyimWidget.class).setAction(eylem);
+        Intent i = new Intent(c, WidgetAlici.class).setAction(eylem);
         return PendingIntent.getBroadcast(c, no, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
-    /** Tüm widget'ları güncel duruma göre yeniden çizer. */
+    // ---------------- çizim ----------------
+
+    /** Tüm widget'ları güncel duruma ve boyutlarına göre yeniden çizer. */
     static void ciz(Context c) {
         AppWidgetManager m = AppWidgetManager.getInstance(c);
         int[] idler = m.getAppWidgetIds(new ComponentName(c, IyiyimWidget.class));
         if (idler == null || idler.length == 0) return;
+        for (int id : idler) {
+            try {
+                if (Build.VERSION.SDK_INT >= 31) {
+                    // Android 12+: başlatıcı, boyuta uyan düzeni kendisi seçer
+                    Map<SizeF, RemoteViews> duzenler = new HashMap<>();
+                    duzenler.put(new SizeF(100f, 40f), gorunum(c, KUCUK));
+                    duzenler.put(new SizeF(100f, 112f), gorunum(c, ORTA));
+                    duzenler.put(new SizeF(100f, 168f), gorunum(c, BUYUK));
+                    m.updateAppWidget(id, new RemoteViews(duzenler));
+                } else {
+                    Bundle o = m.getAppWidgetOptions(id);
+                    int yukseklik = o != null ? o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0) : 0;
+                    if (yukseklik <= 0 && o != null) yukseklik = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0);
+                    int boy = yukseklik <= 0 ? BUYUK : yukseklik < 112 ? KUCUK : yukseklik < 168 ? ORTA : BUYUK;
+                    m.updateAppWidget(id, gorunum(c, boy));
+                }
+            } catch (Exception ignored) {}
+        }
+    }
 
-        RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_iyiyim);
-        akisDoldur(c, v);
+    private static RemoteViews gorunum(Context c, int boy) {
+        int duzen = boy == KUCUK ? R.layout.widget_iyiyim_kucuk : boy == ORTA ? R.layout.widget_iyiyim_orta : R.layout.widget_iyiyim;
+        RemoteViews v = new RemoteViews(c.getPackageName(), duzen);
+
+        // haberler
+        java.util.List<Object[]> h = haberler(c);
+        if (boy == BUYUK) {
+            v.removeAllViews(R.id.w_akis);
+            if (h.isEmpty()) h.add(new Object[]{Ortak.s(c, R.string.w_bos).toUpperCase(Ortak.yerelAyar(c)), c.getColor(R.color.widget_soluk)});
+            for (Object[] x : h) {
+                RemoteViews satir = new RemoteViews(c.getPackageName(), R.layout.widget_akis_satir);
+                satir.setTextViewText(R.id.w_satir, (String) x[0]);
+                satir.setTextColor(R.id.w_satir, (Integer) x[1]);
+                v.addView(R.id.w_akis, satir);
+            }
+        } else if (boy == ORTA) {
+            if (h.isEmpty()) {
+                v.setTextViewText(R.id.w_tek, Ortak.s(c, R.string.w_bos));
+                v.setTextColor(R.id.w_tek, c.getColor(R.color.widget_soluk));
+            } else {
+                v.setTextViewText(R.id.w_tek, (String) h.get(0)[0]);
+                v.setTextColor(R.id.w_tek, (Integer) h.get(0)[1]);
+            }
+        }
+
+        // geçici bilgi satırı
         long dz = Ortak.tercih(c).getLong("widget_durum_zaman", 0);
         String gecici = System.currentTimeMillis() - dz < 20000 ? Ortak.tercih(c).getString("widget_durum", "") : "";
-        v.setViewVisibility(R.id.w_durum, gecici.isEmpty() ? android.view.View.GONE : android.view.View.VISIBLE);
-        v.setTextViewText(R.id.w_durum, gecici);
         boolean giris = girisVar(c);
         long onay = Ortak.tercih(c).getLong("widget_onay", 0);
         boolean onayda = System.currentTimeMillis() - onay < ONAY_SURESI;
+        if (!giris) gecici = Ortak.s(c, R.string.w_giris_yok);
+        else if (onayda) gecici = Ortak.s(c, R.string.w_yardim_onay_bilgi);
+        v.setViewVisibility(R.id.w_durum, gecici.isEmpty() ? View.GONE : View.VISIBLE);
+        v.setTextViewText(R.id.w_durum, gecici);
+        if (boy == ORTA) v.setViewVisibility(R.id.w_tek, gecici.isEmpty() ? View.VISIBLE : View.GONE);
 
+        // düğmeler
+        v.setTextViewText(R.id.w_iyi_yazi, Ortak.s(c, R.string.w_iyi));
         if (!giris) {
             PendingIntent ac = PendingIntent.getActivity(c, 7001, uygulamaIntent(c),
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             v.setOnClickPendingIntent(R.id.w_iyi, ac);
             v.setOnClickPendingIntent(R.id.w_yardim, ac);
-            v.setViewVisibility(R.id.w_durum, android.view.View.VISIBLE);
-            v.setTextViewText(R.id.w_durum, "Önce İyiyim'i açıp adını yaz");
+            v.setTextViewText(R.id.w_yardim_yazi, Ortak.s(c, R.string.w_yardim));
         } else {
             v.setOnClickPendingIntent(R.id.w_iyi, yayin(c, IYI, 7002));
             if (onayda) {
@@ -249,16 +308,15 @@ public class IyiyimWidget extends AppWidgetProvider {
                 y.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                 v.setOnClickPendingIntent(R.id.w_yardim, PendingIntent.getActivity(c, 7003, y,
                         PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
-                v.setTextViewText(R.id.w_yardim_yazi, "Göndermek için\ntekrar dokun");
+                String onayMetni = Ortak.s(c, R.string.w_yardim_onay);
+                v.setTextViewText(R.id.w_yardim_yazi, boy == KUCUK ? onayMetni.replace('\n', ' ') : onayMetni);
                 v.setInt(R.id.w_yardim, "setBackgroundResource", R.drawable.widget_btn_yardim_onay);
-                v.setViewVisibility(R.id.w_durum, android.view.View.VISIBLE);
-                v.setTextViewText(R.id.w_durum, "Yardım isteği ve konumun tüm yakınlarına gidecek");
             } else {
                 v.setOnClickPendingIntent(R.id.w_yardim, yayin(c, YARDIM, 7004));
-                v.setTextViewText(R.id.w_yardim_yazi, "Yardım iste");
+                v.setTextViewText(R.id.w_yardim_yazi, Ortak.s(c, R.string.w_yardim));
                 v.setInt(R.id.w_yardim, "setBackgroundResource", R.drawable.widget_btn_yardim);
             }
         }
-        m.updateAppWidget(idler, v);
+        return v;
     }
 }

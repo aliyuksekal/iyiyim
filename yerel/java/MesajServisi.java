@@ -75,30 +75,30 @@ public class MesajServisi extends FirebaseMessagingService {
                     Ortak.alarmCal(this, "d" + kimden, kimden, ad, System.currentTimeMillis(), true,
                             sayi(deger(v, "lat")), sayi(deger(v, "lng")), deger(v, "hassas"));
                 } else {
-                    String baslik = "sonra".equals(durum) ? ad + " müsait değil" : ad + " iyi olduğunu bildirdi 💚";
-                    String metin = "sonra".equals(durum) ? "Sonra arayacağını herkese bildirdi" : "Kimse sormadan herkese “İyiyim” dedi";
+                    String baslik = "sonra".equals(durum) ? Ortak.s(this, R.string.durum_sonra_baslik, ad) : Ortak.s(this, R.string.durum_iyi_baslik, ad);
+                    String metin = "sonra".equals(durum) ? Ortak.s(this, R.string.durum_sonra_metin) : Ortak.s(this, R.string.durum_iyi_metin);
                     Ortak.bilgiGoster(this, ("d" + kimden).hashCode(), baslik, metin);
                 }
                 break;
             }
 
             case "deneme":
-                Ortak.bilgiGoster(this, 777, "Bildirimler çalışıyor ✓",
-                        "1".equals(deger(v, "gecikmeli")) ? "Uygulama kapalıyken de bildirim alabiliyorsun." : "İyiyim bu telefona bildirim gönderebiliyor.");
+                Ortak.bilgiGoster(this, 777, Ortak.s(this, R.string.deneme_baslik),
+                        "1".equals(deger(v, "gecikmeli")) ? Ortak.s(this, R.string.deneme_gecikmeli) : Ortak.s(this, R.string.deneme_metin));
                 break;
 
             case "eklendi":
-                Ortak.bilgiGoster(this, ("e" + kimden).hashCode(), ad + " seni ekledi", "Artık birbirinize “İyi misin?” diye sorabilirsiniz.");
+                Ortak.bilgiGoster(this, ("e" + kimden).hashCode(), Ortak.s(this, R.string.eklendi_baslik, ad), Ortak.s(this, R.string.eklendi_metin));
                 break;
 
             case "hediye":
-                Ortak.bilgiGoster(this, ("h" + kimden).hashCode(), ad + " sana İyiyim Tam hediye etti 🎁",
-                        "Artık sen de yakınlarına “İyi mi?” diye sorabilir, herkese “İyiyim” diyebilirsin.");
+                Ortak.bilgiGoster(this, ("h" + kimden).hashCode(), Ortak.s(this, R.string.hediye_baslik, ad),
+                        Ortak.s(this, R.string.hediye_metin));
                 break;
 
             case "hediyeKullanildi":
-                Ortak.bilgiGoster(this, ("k" + kimden).hashCode(), "Hediyen ulaştı 🎁",
-                        ad + " hediye kodunu kullandı. Artık İyiyim Tam onun da elinde.");
+                Ortak.bilgiGoster(this, ("k" + kimden).hashCode(), Ortak.s(this, R.string.hediye_ulasti),
+                        Ortak.s(this, R.string.hediye_ulasti_metin, ad));
                 break;
 
             default:

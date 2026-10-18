@@ -5,7 +5,8 @@
 //                        (aynı hesap Play Console'a davet edilir; ödemeler onunla Google'a doğrulatılır)
 // Tablolar ilk istekte kendiliğinden kurulur.
 
-const SUNUCU_SURUM = "1.6";
+const SUNUCU_SURUM = "1.7";
+const GECMIS_MS = 24 * 60 * 60 * 1000;   // bildirim geçmişi 24 saat
 const PAKET = "com.matali.iyiyim";
 const URUN_TAM = "iyiyim_tam";
 const URUN_HEDIYE = "iyiyim_hediye";
@@ -29,6 +30,8 @@ const SEMA = [
   `CREATE TABLE IF NOT EXISTS sinirlar (anahtar TEXT NOT NULL, zaman INTEGER NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS sinirlar_anahtar ON sinirlar (anahtar, zaman)`,
   `CREATE TABLE IF NOT EXISTS ayarlar (ad TEXT PRIMARY KEY, deger TEXT)`,
+  `CREATE TABLE IF NOT EXISTS durumlar (kimden TEXT NOT NULL, durum TEXT NOT NULL, zaman INTEGER NOT NULL, konum TEXT)`,
+  `CREATE INDEX IF NOT EXISTS durumlar_kimden ON durumlar (kimden, zaman)`,
 ];
 // Sonradan eklenen sütunlar (var olan veritabanlarında tek tek eklenir, varsa hata yutulur)
 const EK_SUTUNLAR = [
@@ -87,7 +90,10 @@ export default {
         case "POST /hediye": return hediyeVer(env, ctx, ben, govde);
         case "POST /hediye-kullan": return hediyeKullan(env, ctx, ben, govde, ip);
         case "GET /hediyelerim": return hediyelerim(env, ben);
-        case "POST /deneme": return deneme(env, ctx, ben, govde);
+        case "GET /gecmis": return gecmis(env, ben);
+        case "POST /deneme":
+          if (await sinirAsildi(env, "deneme:" + ben.id, 20, 3600000, true)) return hata("Çok fazla deneme. Biraz sonra tekrar dene.", 429);
+          return deneme(env, ctx, ben, govde);
         case "POST /kisi-sil": return kisiSil(env, ben, govde);
         case "POST /hesap-sil": return hesapSil(env, ben);
       }
@@ -186,6 +192,7 @@ async function guncelle(env, ben, g) {
 }
 
 async function davetOlustur(env, ben) {
+  if (await sinirAsildi(env, "davet:" + ben.id, 30, 3600000, true)) return hata("Çok fazla deneme. Biraz sonra tekrar dene.", 429);
   await env.DB.prepare("DELETE FROM davetler WHERE kullanici = ? OR bitis < ?").bind(ben.id, Date.now()).run();
   for (let deneme = 0; deneme < 6; deneme++) {
     const a = new Uint8Array(6);
@@ -251,6 +258,37 @@ async function kisiler(env, ben) {
   return json({ ben: { id: ben.id, ad: ben.ad, tam: !!ben.tam }, kisiler: sonuc, simdi: Date.now(), soruArasi: SORU_ARASI_MS });
 }
 
+/**
+ * Son 24 saatin bildirim geçmişi: sorduğun/sorulan sorular, cevaplar, yakınlarının "herkese" durumları, yeni eşleşmeler.
+ * tip: sordun | sordu | cevapladi | cevapladin | durum | durumun | eklendi
+ */
+async function gecmis(env, ben) {
+  const sinir = Date.now() - GECMIS_MS;
+  const [bendenS, banaS, durumS, bagS] = await env.DB.batch([
+    env.DB.prepare("SELECT s.id, s.kime AS kim, u.ad, s.zaman, s.cevap, s.cevap_zamani, s.konum FROM sorular s LEFT JOIN kullanicilar u ON u.id = s.kime WHERE s.kimden = ? AND (s.zaman > ? OR s.cevap_zamani > ?)").bind(ben.id, sinir, sinir),
+    env.DB.prepare("SELECT s.id, s.kimden AS kim, u.ad, s.zaman, s.cevap, s.cevap_zamani FROM sorular s LEFT JOIN kullanicilar u ON u.id = s.kimden WHERE s.kime = ? AND (s.zaman > ? OR s.cevap_zamani > ?)").bind(ben.id, sinir, sinir),
+    env.DB.prepare("SELECT d.kimden AS kim, u.ad, d.durum, d.zaman, d.konum FROM durumlar d LEFT JOIN kullanicilar u ON u.id = d.kimden WHERE d.zaman > ? AND (d.kimden = ? OR d.kimden IN (SELECT b FROM baglar WHERE a = ?))").bind(sinir, ben.id, ben.id),
+    env.DB.prepare("SELECT p.b AS kim, u.ad, p.olusma AS zaman FROM baglar p JOIN kullanicilar u ON u.id = p.b WHERE p.a = ? AND p.olusma > ?").bind(ben.id, sinir),
+  ]);
+  const l = [];
+  const ad = (x) => x.ad || "";
+  for (const x of bendenS.results || []) {
+    if (x.zaman > sinir) l.push({ tip: "sordun", kim: x.kim, ad: ad(x), zaman: x.zaman });
+    if (x.cevap && x.cevap_zamani > sinir) l.push({ tip: "cevapladi", kim: x.kim, ad: ad(x), zaman: x.cevap_zamani, cevap: x.cevap, konum: konumOku(x.konum) });
+  }
+  for (const x of banaS.results || []) {
+    if (x.zaman > sinir) l.push({ tip: "sordu", kim: x.kim, ad: ad(x), zaman: x.zaman });
+    if (x.cevap && x.cevap_zamani > sinir) l.push({ tip: "cevapladin", kim: x.kim, ad: ad(x), zaman: x.cevap_zamani, cevap: x.cevap });
+  }
+  for (const x of durumS.results || []) {
+    const benim = x.kim === ben.id;
+    l.push({ tip: benim ? "durumun" : "durum", kim: x.kim, ad: ad(x), zaman: x.zaman, cevap: x.durum, konum: benim ? null : konumOku(x.konum) });
+  }
+  for (const x of bagS.results || []) l.push({ tip: "eklendi", kim: x.kim, ad: ad(x), zaman: x.zaman });
+  l.sort((a, b) => b.zaman - a.zaman);
+  return json({ olaylar: l.slice(0, 300), simdi: Date.now() });
+}
+
 const TAM_GEREKLI = (neden) => hata(neden, 402, { tamGerekli: true });
 
 async function sor(env, ben, g) {
@@ -262,6 +300,10 @@ async function sor(env, ben, g) {
   const simdi = Date.now();
   if (SORU_ARASI_MS > 0 && son && simdi - son.zaman < SORU_ARASI_MS) {
     return hata("Aynı kişiye 30 dakikada bir sorabilirsin", 429, { kalan: SORU_ARASI_MS - (simdi - son.zaman) });
+  }
+  // Rahatsız etmeyi önle: aynı kişiye saatte en fazla 12 soru
+  if (await sinirAsildi(env, "sor:" + ben.id + ":" + kime, 12, 3600000, true)) {
+    return hata("Bu kişiye çok sık sordun. Biraz bekle ya da onu ara.", 429);
   }
   const o = await env.DB.prepare("SELECT id, ad, token FROM kullanicilar WHERE id = ?").bind(kime).first();
   const soruId = crypto.randomUUID();
@@ -298,12 +340,17 @@ async function herkese(env, ctx, ben, g) {
   if (c !== "yardim" && ben.durum !== "yardim" && ben.durum_zamani && simdi - ben.durum_zamani < HERKESE_ARASI_MS) {
     return hata("Herkese 10 dakikada bir bildirebilirsin", 429, { kalan: HERKESE_ARASI_MS - (simdi - ben.durum_zamani) });
   }
+  // Kötüye kullanım sınırı (gerçek bir acil durumda asla dolmaz): saatte 30 yardım isteği
+  if (c === "yardim" && await sinirAsildi(env, "yardim:" + ben.id, 30, 3600000, true)) {
+    return hata("Çok fazla yardım isteği gönderildi. Acil durumdaysan 112'yi ara.", 429);
+  }
   const alti = simdi - 6 * 60 * 60 * 1000;
   const konum = c === "yardim" ? konumTemizle(g.konum, simdi) : null;
   // Konum alınamadıysa son bilinen yardım konumunu koru
   const konumMetni = konum ? JSON.stringify(konum) : (c === "yardim" ? ben.durum_konum || null : null);
   await env.DB.batch([
     env.DB.prepare("UPDATE kullanicilar SET durum = ?, durum_zamani = ?, durum_konum = ? WHERE id = ?").bind(c, simdi, konumMetni, ben.id),
+    env.DB.prepare("INSERT INTO durumlar (kimden, durum, zaman, konum) VALUES (?, ?, ?, ?)").bind(ben.id, c, simdi, konum ? JSON.stringify(konum) : null),
     // Bana sorulmuş ve henüz cevaplamadığım sorular da bu durumla cevaplanmış sayılır
     env.DB.prepare("UPDATE sorular SET cevap = ?, cevap_zamani = ?, konum = ? WHERE kime = ? AND cevap IS NULL AND zaman > ?").bind(c, simdi, konumMetni, ben.id, alti),
   ]);
@@ -548,6 +595,7 @@ async function temizlik(env) {
     env.DB.prepare("DELETE FROM sorular WHERE zaman < ?").bind(simdi - SAKLAMA_MS),
     env.DB.prepare("DELETE FROM davetler WHERE bitis < ?").bind(simdi),
     env.DB.prepare("DELETE FROM sinirlar WHERE zaman < ?").bind(simdi - 86400000),
+    env.DB.prepare("DELETE FROM durumlar WHERE zaman < ?").bind(simdi - 2 * GECMIS_MS),
   ]);
 }
 
@@ -564,6 +612,7 @@ async function hesapSil(env, ben) {
     env.DB.prepare("DELETE FROM baglar WHERE a = ? OR b = ?").bind(ben.id, ben.id),
     env.DB.prepare("DELETE FROM davetler WHERE kullanici = ?").bind(ben.id),
     env.DB.prepare("DELETE FROM sorular WHERE kimden = ? OR kime = ?").bind(ben.id, ben.id),
+    env.DB.prepare("DELETE FROM durumlar WHERE kimden = ?").bind(ben.id),
     env.DB.prepare("DELETE FROM kullanicilar WHERE id = ?").bind(ben.id),
   ]);
   return json({ tamam: true });

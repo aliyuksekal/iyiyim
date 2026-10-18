@@ -28,7 +28,7 @@ public class CevapAlici extends BroadcastReceiver {
         final String ad = intent.getStringExtra("ad") != null ? intent.getStringExtra("ad") : "";
         Ortak.kanallariKur(c);
         Ortak.kapat(c, Ortak.noSoru(soruId));
-        Ortak.durumGoster(c, Ortak.noSoru(soruId), "Gönderiliyor…", ad + " kişisine cevabın iletiliyor", 0);
+        Ortak.durumGoster(c, Ortak.noSoru(soruId), Ortak.s(c, R.string.gonderiliyor), Ortak.s(c, R.string.cevap_iletiliyor, ad), 0);
 
         final PendingResult sonuc = goAsync();
         new Thread(() -> {
@@ -41,27 +41,27 @@ public class CevapAlici extends BroadcastReceiver {
                 int kod = (Integer) r[0];
                 if (kod >= 200 && kod < 300) {
                     String metin = "yardim".equals(cevap)
-                            ? "Yardım isteğin " + (konumMetni != null && !konumMetni.isEmpty() ? "ve konumun " : "") + ad + " kişisine iletildi"
-                            : "sonra".equals(cevap) ? "“Sonra ararım” " + ad + " kişisine iletildi"
-                            : "“İyiyim” " + ad + " kişisine iletildi";
-                    Ortak.durumGoster(c, Ortak.noSoru(soruId), "Gönderildi ✓", metin, 6000);
+                            ? Ortak.s(c, konumMetni != null && !konumMetni.isEmpty() ? R.string.iletildi_yardim_konum : R.string.iletildi_yardim, ad)
+                            : "sonra".equals(cevap) ? Ortak.s(c, R.string.iletildi_sonra, ad)
+                            : Ortak.s(c, R.string.iletildi_iyi, ad);
+                    Ortak.durumGoster(c, Ortak.noSoru(soruId), Ortak.s(c, R.string.gonderildi), metin, 6000);
                     JSONObject o = new JSONObject();
                     o.put("tip", "cevaplandi");
                     o.put("soruId", soruId);
                     o.put("cevap", cevap);
                     Ortak.olay(c, o);
                 } else if (kod == 404) {
-                    Ortak.durumGoster(c, Ortak.noSoru(soruId), "Bu soru artık geçerli değil", ad + " seni listesinden çıkarmış olabilir", 10000);
+                    Ortak.durumGoster(c, Ortak.noSoru(soruId), Ortak.s(c, R.string.soru_gecersiz), Ortak.s(c, R.string.soru_gecersiz_metin, ad), 10000);
                 } else {
                     // İnternet yok ya da sunucuya ulaşılamadı: bağlantı gelince kendiliğinden gönder
                     Ortak.cevapSirala(c, soruId, cevap, ad, konumOku(konumMetni));
-                    Ortak.durumGoster(c, Ortak.noSoru(soruId), "İnternet bekleniyor",
-                            "Cevabın internete bağlanınca otomatik gönderilecek", 0);
+                    Ortak.durumGoster(c, Ortak.noSoru(soruId), Ortak.s(c, R.string.internet_bekleniyor),
+                            Ortak.s(c, R.string.internet_bekleniyor_metin), 0);
                 }
             } catch (Exception e) {
                 Ortak.cevapSirala(c, soruId, cevap, ad, konumOku(konumMetni));
-                Ortak.durumGoster(c, Ortak.noSoru(soruId), "İnternet bekleniyor",
-                        "Cevabın internete bağlanınca otomatik gönderilecek", 0);
+                Ortak.durumGoster(c, Ortak.noSoru(soruId), Ortak.s(c, R.string.internet_bekleniyor),
+                        Ortak.s(c, R.string.internet_bekleniyor_metin), 0);
             } finally {
                 sonuc.finish();
             }

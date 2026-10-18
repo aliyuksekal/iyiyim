@@ -18,15 +18,15 @@ final class SoruGorunumu {
         void secildi(String cevap);
     }
 
-    static final int ZEMIN = 0xFF0B0F14;
-    private static final int YUZEY = 0xFF1C2430;
-    private static final int CIZGI = 0xFF263040;
-    private static final int YAZI = 0xFFEEF3F1;
-    private static final int SOLUK = 0xFF8B97A6;
-    private static final int IYI = 0xFF5CF2C6;
-    private static final int IYI_YAZI = 0xFF06281F;
-    private static final int TEHLIKE = 0xFFFF5E6E;
-    private static final int TEHLIKE_ZEMIN = 0xFF2E1A20;
+    static final int ZEMIN = 0xFF0E1726;
+    private static final int YUZEY = 0xFF1D2B42;
+    private static final int CIZGI = 0xFF2A3A54;
+    private static final int YAZI = 0xFFECF1F8;
+    private static final int SOLUK = 0xFF95A3B8;
+    private static final int IYI = 0xFF3DD9A0;
+    private static final int IYI_YAZI = 0xFF04261A;
+    private static final int TEHLIKE = 0xFFFF5D6C;
+    private static final int TEHLIKE_ZEMIN = 0xFF3A1D2A;
 
     static int dp(Context c, int v) {
         return Math.round(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, c.getResources().getDisplayMetrics()));
@@ -43,17 +43,17 @@ final class SoruGorunumu {
         kok.setClickable(true);
 
         TextView ust = new TextView(c);
-        ust.setText(ad + " soruyor");
+        ust.setText(Ortak.s(c, R.string.soru_ekran_kimden, ad));
         ust.setTextColor(SOLUK);
         ust.setTextSize(TypedValue.COMPLEX_UNIT_SP, 19);
         ust.setGravity(Gravity.CENTER);
         kok.addView(ust);
 
         TextView baslik = new TextView(c);
-        baslik.setText("İyi misin?");
+        baslik.setText(Ortak.s(c, R.string.soru_ekran_baslik));
         baslik.setTextColor(YAZI);
         baslik.setTypeface(Typeface.DEFAULT_BOLD);
-        baslik.setTextSize(TypedValue.COMPLEX_UNIT_SP, 48);
+        baslik.setTextSize(TypedValue.COMPLEX_UNIT_SP, 44);
         baslik.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -61,13 +61,13 @@ final class SoruGorunumu {
         bl.bottomMargin = dp(c, 36);
         kok.addView(baslik, bl);
 
-        kok.addView(dugme(c, "İyiyim", "iyi", IYI, IYI_YAZI, 0, 84, 26, secim));
-        kok.addView(dugme(c, "Sonra ararım", "sonra", YUZEY, YAZI, CIZGI, 64, 20, secim));
-        kok.addView(dugme(c, "Yardım lazım", "yardim", TEHLIKE_ZEMIN, TEHLIKE, 0x80FF5E6E, 64, 20, secim));
+        kok.addView(dugme(c, Ortak.s(c, R.string.cevap_iyi), "iyi", IYI, IYI_YAZI, 0, 84, 26, secim));
+        kok.addView(dugme(c, Ortak.s(c, R.string.cevap_sonra), "sonra", YUZEY, YAZI, CIZGI, 64, 20, secim));
+        kok.addView(dugme(c, Ortak.s(c, R.string.cevap_yardim), "yardim", TEHLIKE_ZEMIN, TEHLIKE, 0x80FF5D6C, 64, 20, secim));
 
         TextView not = new TextView(c);
         not.setTag("durum");
-        not.setText("Cevabın " + ad + " kişisine hemen iletilir. “Yardım lazım” dersen konumun da gönderilir.");
+        not.setText(Ortak.s(c, R.string.soru_ekran_not, ad));
         not.setTextColor(SOLUK);
         not.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         not.setGravity(Gravity.CENTER);

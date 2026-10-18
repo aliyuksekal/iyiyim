@@ -91,6 +91,7 @@ const bilesenler = `
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/iyiyim_widget" />
         </receiver>
+        <receiver android:name=".WidgetAlici" android:exported="false" />
         <service android:name=".MesajServisi" android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />

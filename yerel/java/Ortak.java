@@ -47,6 +47,43 @@ public final class Ortak {
         return c.getSharedPreferences(TERCIH, Context.MODE_PRIVATE);
     }
 
+    // ---------------- dil ----------------
+    /** Desteklenen diller. Uygulamada seçilen dil, yoksa telefonun dili, o da yoksa İngilizce. */
+    static final String[] DILLER = {"tr", "en", "ru", "uz", "zh", "ko", "hi"};
+    private static Context yerelBaglam;
+    private static String yerelDil;
+
+    static String dil(Context c) {
+        String d = tercih(c).getString("dil", "");
+        for (String x : DILLER) if (x.equals(d)) return d;
+        String s = java.util.Locale.getDefault().getLanguage();
+        for (String x : DILLER) if (x.equals(s)) return s;
+        return "en";
+    }
+
+    static java.util.Locale yerelAyar(Context c) {
+        String d = dil(c);
+        return "zh".equals(d) ? java.util.Locale.SIMPLIFIED_CHINESE : new java.util.Locale(d);
+    }
+
+    /** Seçili dilde kaynak okumak için bağlam. */
+    static synchronized Context yerel(Context c) {
+        String d = dil(c);
+        if (yerelBaglam == null || !d.equals(yerelDil)) {
+            Context u = c.getApplicationContext() != null ? c.getApplicationContext() : c;
+            android.content.res.Configuration cf = new android.content.res.Configuration(u.getResources().getConfiguration());
+            cf.setLocale(yerelAyar(c));
+            yerelBaglam = u.createConfigurationContext(cf);
+            yerelDil = d;
+        }
+        return yerelBaglam;
+    }
+
+    /** Seçili dilde metin. */
+    static String s(Context c, int id, Object... a) {
+        return a.length == 0 ? yerel(c).getString(id) : yerel(c).getString(id, a);
+    }
+
     static String ton(Context c) {
         String t = tercih(c).getString("ton", "zil");
         for (String x : TONLAR) if (x.equals(t)) return t;
@@ -90,8 +127,8 @@ public final class Ortak {
 
         Uri ses = tonUri(c, ton(c));
 
-        NotificationChannel soru = new NotificationChannel(soruId, "Gelen sorular", NotificationManager.IMPORTANCE_HIGH);
-        soru.setDescription("Biri sana “İyi misin?” diye sorduğunda: yüksek sesli, ekranda açılır");
+        NotificationChannel soru = new NotificationChannel(soruId, s(c, R.string.kanal_soru), NotificationManager.IMPORTANCE_HIGH);
+        soru.setDescription(s(c, R.string.kanal_soru_acik));
         soru.setSound(ses, yuksekSes());
         soru.enableVibration(true);
         soru.setVibrationPattern(new long[]{0, 600, 300, 600, 300, 600});
@@ -99,18 +136,18 @@ public final class Ortak {
         soru.setLightColor(RENK);
         soru.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
 
-        NotificationChannel cevap = new NotificationChannel(KANAL_CEVAP, "Cevaplar", NotificationManager.IMPORTANCE_HIGH);
-        cevap.setDescription("Sorduğun kişi cevap verdiğinde");
+        NotificationChannel cevap = new NotificationChannel(KANAL_CEVAP, s(c, R.string.kanal_cevap), NotificationManager.IMPORTANCE_HIGH);
+        cevap.setDescription(s(c, R.string.kanal_cevap_acik));
 
-        NotificationChannel alarm = new NotificationChannel(alarmId, "Cevap gelmedi / Yardım alarmı", NotificationManager.IMPORTANCE_HIGH);
-        alarm.setDescription("Sorduğun kişi zamanında cevap vermezse ya da yardım isterse");
+        NotificationChannel alarm = new NotificationChannel(alarmId, s(c, R.string.kanal_alarm), NotificationManager.IMPORTANCE_HIGH);
+        alarm.setDescription(s(c, R.string.kanal_alarm_acik));
         alarm.setSound(ses, yuksekSes());
         alarm.enableVibration(true);
         alarm.setVibrationPattern(new long[]{0, 900, 500, 900, 500, 900});
         alarm.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
 
-        NotificationChannel durum = new NotificationChannel(KANAL_DURUM, "Gönderim durumu", NotificationManager.IMPORTANCE_LOW);
-        durum.setDescription("Bildirimden verdiğin cevabın gönderilip gönderilmediği");
+        NotificationChannel durum = new NotificationChannel(KANAL_DURUM, s(c, R.string.kanal_durum), NotificationManager.IMPORTANCE_LOW);
+        durum.setDescription(s(c, R.string.kanal_durum_acik));
 
         nm.createNotificationChannels(Arrays.asList(soru, cevap, alarm, durum));
     }
@@ -208,17 +245,17 @@ public final class Ortak {
         NotificationCompat.Builder b = new NotificationCompat.Builder(c, kanalSoru(c))
                 .setSmallIcon(R.drawable.ic_stat_iyiyim)
                 .setColor(RENK)
-                .setContentTitle(ad + " soruyor: İyi misin?")
-                .setContentText(altMetin != null ? altMetin : "Aşağıdan tek dokunuşla cevap ver.")
+                .setContentTitle(s(c, R.string.soru_baslik, ad))
+                .setContentText(altMetin != null ? altMetin : s(c, R.string.soru_metin))
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setAutoCancel(true)
                 .setTimeoutAfter(6L * 60 * 60 * 1000)
                 .setContentIntent(soruEkraniNiyeti(c, soruId, ad))
-                .addAction(0, "İyiyim", cevapNiyeti(c, soruId, "iyi", ad))
-                .addAction(0, "Sonra ararım", cevapNiyeti(c, soruId, "sonra", ad))
-                .addAction(0, "Yardım lazım", yardimNiyeti(c, soruId, ad));
+                .addAction(0, s(c, R.string.cevap_iyi), cevapNiyeti(c, soruId, "iyi", ad))
+                .addAction(0, s(c, R.string.cevap_sonra), cevapNiyeti(c, soruId, "sonra", ad))
+                .addAction(0, s(c, R.string.cevap_yardim), yardimNiyeti(c, soruId, ad));
         if (altMetin == null) {
             // Kilit ekranında / ekran kapalıyken soruyu tam ekran açar
             b.setFullScreenIntent(soruEkraniNiyeti(c, soruId, ad), true);
@@ -247,8 +284,8 @@ public final class Ortak {
     }
 
     static void cevapGoster(Context c, String soruId, String ad, String cevap) {
-        String baslik = "sonra".equals(cevap) ? ad + " sonra arayacak" : ad + " iyi 💚";
-        String metin = "sonra".equals(cevap) ? "Cevabı: Sonra ararım" : "Cevabı: İyiyim";
+        String baslik = "sonra".equals(cevap) ? s(c, R.string.cevap_geldi_sonra, ad) : s(c, R.string.cevap_geldi_iyi, ad);
+        String metin = "sonra".equals(cevap) ? s(c, R.string.cevap_geldi_sonra_metin) : s(c, R.string.cevap_geldi_iyi_metin);
         NotificationCompat.Builder b = new NotificationCompat.Builder(c, KANAL_CEVAP)
                 .setSmallIcon(R.drawable.ic_stat_iyiyim)
                 .setColor(RENK)
@@ -416,14 +453,15 @@ public final class Ortak {
         String tel = telefon(c, kisiId);
         boolean konumVar = !Double.isNaN(lat) && !Double.isNaN(lng);
         long dk = Math.max(1, (System.currentTimeMillis() - soruldu) / 60000);
-        String baslik = yardim ? ad + " yardım istiyor!" : ad + " cevap vermedi";
+        String baslik = yardim ? s(c, R.string.alarm_yardim_baslik, ad) : s(c, R.string.alarm_cevapsiz_baslik, ad);
         String metin;
         if (yardim) {
             metin = konumVar
-                    ? "Konumunu gönderdi" + (hassas != null && !hassas.isEmpty() ? " (±" + hassas + " m)" : "") + ". " + (tel.isEmpty() ? "Hemen ulaş." : "Hemen ara.")
-                    : (tel.isEmpty() ? "Hemen ulaşmaya çalış." : "Hemen ara.");
+                    ? s(c, R.string.alarm_konum_gonderdi) + (hassas != null && !hassas.isEmpty() ? " (±" + hassas + " m)" : "") + ". "
+                      + (tel.isEmpty() ? s(c, R.string.alarm_hemen_ulas) : s(c, R.string.alarm_hemen_ara))
+                    : (tel.isEmpty() ? s(c, R.string.alarm_ulasmaya_calis) : s(c, R.string.alarm_hemen_ara));
         } else {
-            metin = dk + " dakika önce sordun. " + (tel.isEmpty() ? "Ulaşmaya çalış." : "Hemen ara.");
+            metin = s(c, R.string.alarm_dk_once, (int) dk) + " " + (tel.isEmpty() ? s(c, R.string.alarm_ulas) : s(c, R.string.alarm_hemen_ara));
         }
 
         NotificationCompat.Builder b = new NotificationCompat.Builder(c, kanalAlarm(c))
@@ -446,14 +484,14 @@ public final class Ortak {
         if (!tel.isEmpty()) {
             Intent ara = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + tel));
             ara.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            b.addAction(0, "Ara", PendingIntent.getActivity(c, ("ara" + soruId).hashCode(), ara,
+            b.addAction(0, s(c, R.string.eylem_ara), PendingIntent.getActivity(c, ("ara" + soruId).hashCode(), ara,
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
             eylem++;
         }
         if (konumVar) {
             Intent k = new Intent(Intent.ACTION_VIEW, Uri.parse(haritaAdresi(lat, lng)));
             k.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            b.addAction(0, "Konumu aç", PendingIntent.getActivity(c, ("kn" + soruId).hashCode(), k,
+            b.addAction(0, s(c, R.string.eylem_konum), PendingIntent.getActivity(c, ("kn" + soruId).hashCode(), k,
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
             eylem++;
         }
@@ -468,7 +506,7 @@ public final class Ortak {
         Intent sus = new Intent(c, CevapAlici.class);
         sus.setAction("com.matali.iyiyim.SUSTUR");
         sus.putExtra("soruId", soruId);
-        b.addAction(0, "Sustur", PendingIntent.getBroadcast(c, ("sus" + soruId).hashCode(), sus,
+        b.addAction(0, s(c, R.string.eylem_sustur), PendingIntent.getBroadcast(c, ("sus" + soruId).hashCode(), sus,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
 
         Notification n = b.build();

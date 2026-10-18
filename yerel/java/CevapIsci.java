@@ -34,8 +34,8 @@ public class CevapIsci extends Worker {
             int kod = (Integer) r[0];
             if (kod >= 200 && kod < 300) {
                 Ortak.kanallariKur(c);
-                Ortak.durumGoster(c, Ortak.noSoru(soruId), "Gönderildi ✓",
-                        "Bekleyen cevabın " + ad + " kişisine iletildi", 8000);
+                Ortak.durumGoster(c, Ortak.noSoru(soruId), Ortak.s(c, R.string.gonderildi),
+                        Ortak.s(c, R.string.bekleyen_iletildi, ad), 8000);
                 JSONObject o = new JSONObject();
                 o.put("tip", "cevaplandi");
                 o.put("soruId", soruId);

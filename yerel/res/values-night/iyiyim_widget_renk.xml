@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="widget_zemin">#F20B0F14</color>
-    <color name="widget_soluk">#8B97A6</color>
+    <color name="widget_zemin">#F50E1726</color>
+    <color name="widget_soluk">#95A3B8</color>
+    <color name="w_iyi">#3DD9A0</color>
+    <color name="w_tehlike">#FF5D6C</color>
+    <color name="w_bekle">#F5B84B</color>
 </resources>

@@ -92,6 +92,27 @@ public class IyiyimPlugin extends Plugin {
         call.resolve();
     }
 
+    /** Uygulama dilini kaydeder: bildirimler, widget ve soru ekranı bu dilde gösterilir. */
+    @PluginMethod
+    public void dilAyarla(PluginCall call) {
+        String d = call.getString("dil", "");
+        Ortak.tercih(getContext()).edit().putString("dil", d).apply();
+        Ortak.kanallariKur(getContext()); // kanal adları yeni dilde
+        IyiyimWidget.ciz(getContext());
+        JSObject r = new JSObject();
+        r.put("dil", Ortak.dil(getContext()));
+        call.resolve(r);
+    }
+
+    /** Telefonun dili (ilk açılışta varsayılan dil seçimi için). */
+    @PluginMethod
+    public void telefonDili(PluginCall call) {
+        JSObject r = new JSObject();
+        r.put("dil", java.util.Locale.getDefault().getLanguage());
+        r.put("etiket", java.util.Locale.getDefault().toLanguageTag());
+        call.resolve(r);
+    }
+
     @PluginMethod
     public void jetonAl(PluginCall call) {
         try {

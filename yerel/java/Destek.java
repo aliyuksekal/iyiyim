@@ -45,7 +45,10 @@ final class Destek {
     private static Sonuc bekleyen;
     private static String bekleyenUrun;
 
+    private static Context baglam;
+
     private static synchronized BillingClient istemci(Context c) {
+        if (baglam == null) baglam = c.getApplicationContext();
         if (istemci == null) {
             istemci = BillingClient.newBuilder(c.getApplicationContext())
                     .setListener(Destek::satinAlmaGuncellendi)
@@ -90,7 +93,7 @@ final class Destek {
             }
             istemci(c).queryProductDetailsAsync(QueryProductDetailsParams.newBuilder().setProductList(l).build(), (r, liste) -> {
                 if (r.getResponseCode() != BillingClient.BillingResponseCode.OK || liste == null || liste.isEmpty()) {
-                    hata.oldu("Ürünler şu an Play Store'dan alınamadı. Uygulama Play Store'dan kurulduğunda çalışır.");
+                    hata.oldu(Ortak.s(c, R.string.b_urun_yok));
                     return;
                 }
                 s.geldi(liste);
@@ -137,7 +140,7 @@ final class Destek {
                         JSONArray h = o.optJSONArray(urun + "_liste");
                         if (h != null && h.length() > 0) token = h.optString(0);
                     }
-                    sonuc.bitti(token.isEmpty() ? "hata" : "tamam", token, token.isEmpty() ? "Bu ürün zaten alınmış." : "");
+                    sonuc.bitti(token.isEmpty() ? "hata" : "tamam", token, token.isEmpty() ? Ortak.s(a, R.string.b_zaten) : "");
                 });
             } else if (r.getResponseCode() != BillingClient.BillingResponseCode.OK) {
                 bekleyen = null;
@@ -166,8 +169,8 @@ final class Destek {
             }
             if (s != null) {
                 if (!token.isEmpty()) s.bitti("tamam", token, "");
-                else if (bekliyor) s.bitti("bekliyor", "", "Ödemen onay bekliyor. Onaylanınca tamamlanacak.");
-                else s.bitti("hata", "", "Ödeme tamamlanmadı.");
+                else if (bekliyor) s.bitti("bekliyor", "", Ortak.s(baglam, R.string.b_bekliyor));
+                else s.bitti("hata", "", Ortak.s(baglam, R.string.b_tamamlanmadi));
             }
         } else if (kod == BillingClient.BillingResponseCode.USER_CANCELED) {
             if (s != null) s.bitti("iptal", "", "");
@@ -224,16 +227,16 @@ final class Destek {
     private static String aciklama(BillingResult r) {
         switch (r.getResponseCode()) {
             case BillingClient.BillingResponseCode.BILLING_UNAVAILABLE:
-                return "Bu telefonda Google Play ödemesi kullanılamıyor. Play Store'a giriş yaptığından emin ol.";
+                return Ortak.s(baglam, R.string.b_kullanilamaz);
             case BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE:
             case BillingClient.BillingResponseCode.SERVICE_DISCONNECTED:
             case BillingClient.BillingResponseCode.NETWORK_ERROR:
-                return "Google Play'e ulaşılamadı. İnternetini kontrol edip tekrar dene.";
+                return Ortak.s(baglam, R.string.b_ulasilamadi);
             case BillingClient.BillingResponseCode.ITEM_UNAVAILABLE:
             case BillingClient.BillingResponseCode.DEVELOPER_ERROR:
-                return "Satın alma Play Store sürümünde etkin olacak.";
+                return Ortak.s(baglam, R.string.b_play_surum);
             default:
-                return "Ödeme başlatılamadı (" + r.getResponseCode() + ").";
+                return Ortak.s(baglam, R.string.b_baslatilamadi, r.getResponseCode());
         }
     }
 }

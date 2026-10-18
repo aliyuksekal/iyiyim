@@ -20,8 +20,8 @@ public class YardimActivity extends Activity {
     protected void onCreate(Bundle kayit) {
         super.onCreate(kayit);
         Ortak.tercih(this).edit().putLong("widget_onay", 0).apply();
-        IyiyimWidget.durumYaz(this, "Konum alınıyor, yardım isteği gönderiliyor…");
-        Toast.makeText(this, "Yardım isteği gönderiliyor…", Toast.LENGTH_SHORT).show();
+        IyiyimWidget.durumYaz(this, Ortak.s(this, R.string.y_gonderiliyor));
+        Toast.makeText(this, Ortak.s(this, R.string.y_toast), Toast.LENGTH_SHORT).show();
         if (Konum.izinVar(this) || Build.VERSION.SDK_INT < 23) {
             basla();
         } else {
@@ -54,15 +54,15 @@ public class YardimActivity extends Activity {
                 int kod = (Integer) r[0];
                 if (kod >= 200 && kod < 300) {
                     int kisi = new JSONObject((String) r[1]).optInt("kisi", 0);
-                    IyiyimWidget.olayEkle(c, "ben", "Sen", "ben_yardim", System.currentTimeMillis());
-                    mesaj = (konum != null ? "Yardım isteğin ve konumun " : "Yardım isteğin ") + kisi + " kişiye gitti · " + IyiyimWidget.saat();
+                    IyiyimWidget.olayEkle(c, "ben", "", "ben_yardim", System.currentTimeMillis());
+                    mesaj = Ortak.s(c, konum != null ? R.string.y_gitti_konum : R.string.y_gitti, kisi, IyiyimWidget.saat());
                 } else if (kod == -1) {
-                    mesaj = "İnternet yok! Bağlanınca tekrar dene ya da 112'yi ara";
+                    mesaj = Ortak.s(c, R.string.y_internet);
                 } else {
-                    mesaj = "Gönderilemedi, tekrar dene ya da 112'yi ara";
+                    mesaj = Ortak.s(c, R.string.y_hata);
                 }
             } catch (Exception e) {
-                mesaj = "Gönderilemedi, tekrar dene ya da 112'yi ara";
+                mesaj = Ortak.s(c, R.string.y_hata);
             }
             final String son = mesaj;
             IyiyimWidget.durumYaz(c, son);

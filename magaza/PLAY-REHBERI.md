@@ -85,6 +85,44 @@ GİZLİLİĞİNE SAYGILI
 **İletişim e-postası:** matali.truz@gmail.com
 **Gizlilik politikası URL'si:** https://aliyuksekal.github.io/iyiyim/gizlilik.html
 
+## 1b. Diğer diller (Mağaza girişi → Çeviri ekle)
+Uygulama 7 dilde: Türkçe, İngilizce, Rusça, Özbekçe, Çince (Basitleştirilmiş), Korece, Hintçe. Play Console → Ana mağaza girişi → **Çevirileri yönet → Kendi çevirilerimi ekle** ile şu dilleri ekle ve alanları doldur:
+
+| Dil | Uygulama adı | Kısa açıklama |
+|---|---|---|
+| English (en-US) | İyiyim: Are You OK? | Ask “Are you OK?” with one tap. No reply? Your phone sounds an alarm. |
+| Русский (ru-RU) | İyiyim: Всё в порядке? | Спросите близких «Всё в порядке?» одним касанием. Нет ответа — тревога. |
+| Oʻzbek (uz) | İyiyim: Yaxshimisiz? | Bir bosishda “Yaxshimisiz?” deb soʻrang. Javob boʻlmasa, telefon signal chaladi. |
+| 中文 简体 (zh-CN) | İyiyim：你还好吗？ | 一键问候“你还好吗？”。没有回复，手机就会响铃提醒。 |
+| 한국어 (ko-KR) | İyiyim: 괜찮아요? | 한 번 눌러 “괜찮아요?”라고 물어보세요. 답이 없으면 알람이 울려요. |
+| हिन्दी (hi-IN) | İyiyim: क्या आप ठीक हैं? | एक टैप में पूछें “क्या आप ठीक हैं?” जवाब न आए तो फ़ोन अलार्म बजाए। |
+
+**Tam açıklama (English)**
+```
+Does your mom live alone? Is your brother on the road? Want to be sure everyone is OK?
+
+With İyiyim, you ask your loved ones “Are you OK?” with one tap. They reply right from the notification, without opening the app. If there's no reply in the time you choose, your phone sounds an alarm and you can call with one tap.
+
+HOW IT WORKS
+• Add contacts with a 6-character code. No phone number needed.
+• Tap “Ask” next to a contact.
+• They tap “I'm OK”, “I'll call later” or “I need help”.
+• No reply in 15 minutes to 4 hours (you choose)? Your phone alarm rings. “I need help” rings right away.
+
+HIGHLIGHTS
+• Get help: one tap sends a help request and your location to everyone.
+• Tell everyone “I'm OK” without being asked.
+• Opens even on the lock screen.
+• 5 loud tones, heard even in silent mode.
+• Works on any internet connection, no SMS or carrier needed.
+• Home screen widget, notification history of the last 24 hours.
+• 7 languages, dark and light mode.
+
+İyiyim is free to download. Replying and “Get help” are always free. İyiyim Plus (one-time, no subscription) unlocks asking, alarms and “Tell everyone”. You can also gift Plus to a loved one.
+
+İyiyim is not an emergency service. In an emergency, call your local emergency number.
+```
+
 ## 2. Görseller (bu klasörde)
 | Dosya | Play'deki yeri |
 |---|---|
@@ -118,7 +156,7 @@ Giriş gerekmez. Açılışta bir ad yazmak yeterli. Soru sormak İyiyim Tam (uy
 **Haber uygulaması:** Hayır · **Devlet uygulaması:** Hayır · **Finans özellikleri:** Yok · **Sağlık:** Yok
 
 **Hesap silme:** Uygulama hesap oluşturuyor (ad ile).
-- Uygulama içinden silme: Ayarlar → Gelişmiş → Hesabımı sil
+- Uygulama içinden silme: Ayarlar → Hesabımı sil
 - Web bağlantısı: https://aliyuksekal.github.io/iyiyim/hesap-silme.html
 
 ## 4. Veri güvenliği formu

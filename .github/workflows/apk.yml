@@ -32,6 +32,15 @@ jobs:
       - name: Paketleri kur
         run: npm install --no-audit --no-fund
 
+      - name: Yazı tipi (Onest — Latin, Kiril)
+        continue-on-error: true
+        run: |
+          npm install --no-save --no-audit --no-fund @fontsource-variable/onest@5
+          D=node_modules/@fontsource-variable/onest
+          cp $D/files/*-wght-normal.woff2 www/yazi/
+          sed 's#\./files/#./#g' $D/index.css > www/yazi/onest.css
+          ls -la www/yazi/ && head -c 400 www/yazi/onest.css
+
       - name: google-services.json
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
