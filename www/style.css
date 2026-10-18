@@ -418,3 +418,11 @@ a.ayar-satir { color: inherit; text-decoration: none; }
 /* Çince, Korece, Hintçe: sistemin kendi yazı tipleri daha okunur; büyük harf/harf aralığı yok */
 :lang(zh) body, :lang(ko) body, :lang(hi) body { --yazi-baslik: system-ui, "Noto Sans", sans-serif; --yazi-govde: system-ui, "Noto Sans", sans-serif; }
 :lang(hi) body { line-height: 1.6; }
+
+/* İlgilenilmiş acil durum: bilgi kalır, alarm rengi söner */
+.kisi.sakin { border-color: var(--cizgi) !important; background: var(--yuzey) !important; transition: background .6s ease, border-color .6s ease; }
+.kisi.sakin .avatar { box-shadow: 0 0 0 2.5px var(--yuzey), 0 0 0 4.5px var(--cizgi); animation: none; }
+.kisi.sakin .avatar::after { background: var(--soluk); }
+.kisi.sakin .kisi-durum { color: var(--soluk); font-weight: 400; }
+.kisi.sakin .konum-link { color: var(--ana); }
+.kisi.sakin .ara-yuvarlak { background: var(--yuzey-2); color: var(--yazi); }

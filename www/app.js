@@ -183,7 +183,7 @@
       const t0 = simdi();
       const soruArasi0 = 0 /* bekleme süresi yok */;
       const kilit0 = s ? Math.max(0, soruArasi0 - (t0 - s.zaman)) : 0;
-      if (d.cevap === "yardim") return { sinif: "durum-yardim", metin: t("Yardım istedi · {0}", once(t0 - d.zaman)), kilit: kilit0 };
+      if (d.cevap === "yardim") return { sinif: "durum-yardim", metin: t("Yardım istedi · {0}", once(t0 - d.zaman)), kilit: kilit0, olay: "d" + d.zaman, zaman: d.zaman };
       if (d.cevap === "sonra") return { sinif: "durum-sonra", metin: t("Müsait değil · {0}", once(t0 - d.zaman)), kilit: kilit0 };
       return { sinif: "durum-iyi", metin: t("Kendisi bildirdi: İyi · {0}", once(t0 - d.zaman)), kilit: kilit0 };
     }
@@ -191,13 +191,31 @@
     const soruArasi = 0 /* bekleme süresi yok */;
     const kilit = s ? Math.max(0, soruArasi - (an - s.zaman)) : 0;
     if (!s) return { sinif: "", metin: t("Henüz sormadın"), kilit };
-    if (s.cevap === "yardim") return { sinif: "durum-yardim", metin: t("Yardım istedi · {0}", once(an - s.cevap_zamani)), kilit };
+    if (s.cevap === "yardim") return { sinif: "durum-yardim", metin: t("Yardım istedi · {0}", once(an - s.cevap_zamani)), kilit, olay: "s" + s.id, zaman: s.cevap_zamani };
     if (s.cevap === "iyi") return { sinif: "durum-iyi", metin: t("İyi · {0}", once(an - s.cevap_zamani)), kilit };
     if (s.cevap === "sonra") return { sinif: "durum-sonra", metin: t("Sonra arayacak · {0}", once(an - s.cevap_zamani)), kilit };
     const sureMs = ayar.sureDk * 60000;
     const gecen = an - s.zaman;
     if (gecen < sureMs) return { sinif: "durum-bekliyor", metin: t("Bekleniyor · alarma {0}", kalanMetin(sureMs - gecen)), kilit };
-    return { sinif: "durum-cevapsiz", metin: t("Cevap vermedi · {0} soruldu", once(gecen)), kilit };
+    return { sinif: "durum-cevapsiz", metin: t("Cevap vermedi · {0} soruldu", once(gecen)), kilit, olay: "s" + s.id, zaman: s.zaman + sureMs };
+  }
+
+  // Kırmızı (yardım / cevapsız) kart sürekli kırmızı kalıp kimseyi tedirgin etmesin:
+  // kişiyle ilgilenince (aradın, konumuna baktın, kartını açtın) ya da 6 saat geçince sakin renge döner.
+  let ilgilenilen = oku("ilgilenilen", {}); // kisiId -> olay anahtarı
+  const SAKINLESME_MS = 6 * 60 * 60 * 1000;
+  function sakinMi(k, d) {
+    if (!d.olay) return false;
+    return ilgilenilen[k.id] === d.olay || (d.zaman && simdi() - d.zaman > SAKINLESME_MS);
+  }
+  function ilgilenildi(kisiId) {
+    const k = ((veri && veri.kisiler) || []).find((x) => x.id === kisiId);
+    if (!k) return;
+    const d = durumHesapla(k);
+    if (!d.olay || ilgilenilen[kisiId] === d.olay) return;
+    ilgilenilen[kisiId] = d.olay;
+    yaz("ilgilenilen", ilgilenilen);
+    setTimeout(ciz, 400); // arama/harita açılırken kart yumuşakça sakinleşsin
   }
 
   const PIN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>';
@@ -231,7 +249,7 @@
         sag = `<div class="sag-dugmeler"><a class="ara-yuvarlak" aria-label="${kacis(t("{0} kişisini ara", k.ad))}" href="tel:${kacis(tel.replace(/[^0-9+]/g, ""))}">${ARA_SVG}</a>${sag}</div>`;
       }
       return `
-        <div class="kisi ${d.sinif}">
+        <div class="kisi ${d.sinif}${sakinMi(k, d) ? " sakin" : ""}" data-kart="${kacis(k.id)}">
           <div class="avatar" aria-hidden="true">${kacis(Array.from((k.ad || "?").trim())[0].toLocaleUpperCase(dilEtiketi()))}</div>
           <div class="kisi-orta">
             <button class="kisi-bilgi" data-kisi="${kacis(k.id)}">
@@ -1255,6 +1273,8 @@
 
   // ---------- liste tıklamaları ----------
   $("#kisi-liste").addEventListener("click", (e) => {
+    const kart = e.target.closest("[data-kart]");
+    if (kart && e.target.closest(".ara-yuvarlak, .konum-link, [data-kisi]")) ilgilenildi(kart.dataset.kart);
     const s = e.target.closest("[data-sor]");
     if (s) return sor(s.dataset.sor, s);
     const k = e.target.closest("[data-kisi]");
