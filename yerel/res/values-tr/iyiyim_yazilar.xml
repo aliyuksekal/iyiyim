@@ -43,10 +43,10 @@
     <string name="deneme_metin">İyiyim bu telefona bildirim gönderebiliyor.</string>
     <string name="eklendi_baslik">%1$s seni ekledi</string>
     <string name="eklendi_metin">Artık birbirinize “İyi misin?” diye sorabilirsiniz.</string>
-    <string name="hediye_baslik">%1$s sana İyiyim Tam hediye etti 🎁</string>
+    <string name="hediye_baslik">%1$s sana Çok İyiyim hediye etti 🎁</string>
     <string name="hediye_metin">Artık sen de yakınlarına “İyi mi?” diye sorabilir, herkese “İyiyim” diyebilirsin.</string>
     <string name="hediye_ulasti">Hediyen ulaştı 🎁</string>
-    <string name="hediye_ulasti_metin">%1$s hediye kodunu kullandı. Artık İyiyim Tam onun da elinde.</string>
+    <string name="hediye_ulasti_metin">%1$s hediye kodunu kullandı. Artık Çok İyiyim onun da elinde.</string>
     <string name="gonderiliyor">Gönderiliyor…</string>
     <string name="cevap_iletiliyor">%1$s kişisine cevabın iletiliyor</string>
     <string name="gonderildi">Gönderildi ✓</string>
@@ -74,7 +74,7 @@
     <string name="w_ak_ben_iyi">%1$s sen “iyiyim” dedin</string>
     <string name="w_ak_ben_yardim">%1$s yardım istedin</string>
     <string name="w_gitti">✓ %1$d kişiye gitti</string>
-    <string name="w_tam_gerekli">İyiyim Tam gerekli · uygulamayı aç</string>
+    <string name="w_tam_gerekli">Çok İyiyim gerekli · uygulamayı aç</string>
     <string name="w_az_once">Az önce bildirdin, biraz sonra tekrar dene</string>
     <string name="w_internet_yok">İnternet yok, bağlanınca tekrar dokun</string>
     <string name="w_gonderilemedi">Gönderilemedi, tekrar dokun</string>

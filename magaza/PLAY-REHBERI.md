@@ -6,16 +6,16 @@ Bu klasördeki her şey Play Console'a yüklenmeye hazır. Aşağıdaki cevaplar
 
 ## 0. Fiyatlandırma ve ürünler
 
-**Model:** Uygulama **ücretsiz** indirilir. Soru sormak, alarm ve "Herkese İyiyim de" **İyiyim Tam** ile açılır. Gelen sorulara cevap vermek ve "Yardım iste" herkese her zaman ücretsizdir.
+**Model:** Uygulama **ücretsiz** indirilir. Soru sormak, alarm ve "Herkese İyiyim de" **Çok İyiyim** ile açılır. Gelen sorulara cevap vermek ve "Yardım iste" herkese her zaman ücretsizdir.
 
 - **Uygulama fiyatı:** Play Console → Para kazanma → Uygulama fiyatlandırması → **Ücretsiz**.
 - **Uygulama içi ürünler:** Play Console → Para kazanma → Ürünler → **Uygulama içi ürünler** → Ürün oluştur. (Bu bölüm, ilk AAB bir test kanalına yüklendikten sonra açılır. Ödeme profili / Merchant hesabı gerekir.)
 
 | Ürün kimliği (birebir) | Ad | Açıklama | Fiyat |
 |---|---|---|---|
-| `iyiyim_tam` | İyiyim Tam | Sınırsız "İyi mi?", cevap gelmezse alarm, herkese "İyiyim". Tek seferlik. | **99,99 TRY** |
-| `iyiyim_hediye` | İyiyim Tam (hediye) | Bir yakınına İyiyim Tam hediye et. | **79,99 TRY** |
-| `iyiyim_hediye_49` | İyiyim Tam (ek hediye) | İkinci ve sonraki hediyeler için indirimli fiyat. | **49,99 TRY** |
+| `iyiyim_tam` | Çok İyiyim | Sınırsız "İyi mi?", cevap gelmezse alarm, herkese "İyiyim". Tek seferlik. | **99,99 TRY** |
+| `iyiyim_hediye` | Çok İyiyim (hediye) | Bir yakınına Çok İyiyim hediye et. | **79,99 TRY** |
+| `iyiyim_hediye_49` | Çok İyiyim (ek hediye) | İkinci ve sonraki hediyeler için indirimli fiyat. | **49,99 TRY** |
 | `destek_149` | Geliştiriciyi destekle | İyiyim'in gelişmesine ve sunucuların açık kalmasına katkı | **149,99 TRY** |
 
 Dördünü de **Etkin** yap. Uygulama `iyiyim_tam`'ı kalıcı ürün olarak onaylar. Hediye ürünleri ve `destek_149` tüketilir, yani tekrar tekrar alınabilir.
@@ -70,8 +70,8 @@ NASIL ÇALIŞIR
 
 ÜCRETSİZ VE İYİYİM TAM
 • İndirmek, gelen sorulara cevap vermek ve “Yardım iste” herkes için her zaman ücretsiz.
-• İyiyim Tam (tek seferlik, abonelik yok): sınırsız “İyi mi?”, cevap gelmezse alarm, herkese “İyiyim”.
-• Hediye et: Annene, babana İyiyim Tam'ı sen al; o da sana sorabilsin.
+• Çok İyiyim (tek seferlik, abonelik yok): sınırsız “İyi mi?”, cevap gelmezse alarm, herkese “İyiyim”.
+• Hediye et: Annene, babana Çok İyiyim'i sen al; o da sana sorabilsin.
 
 GİZLİLİĞİNE SAYGILI
 • Telefon numaranı, e-postanı ya da rehberini istemez. Konumun sadece “Yardım lazım” dediğinde gider.
@@ -143,7 +143,7 @@ HIGHLIGHTS
 **Uygulama erişimi:** Tüm işlevler özel bir erişim gerekmeden kullanılabilir.
 İnceleme ekibi için not:
 ```
-Giriş gerekmez. Açılışta bir ad yazmak yeterli. Soru sormak İyiyim Tam (uygulama içi satın alma) ister; cevap vermek ve "Yardım iste" ücretsizdir. Soru-cevap özelliğini denemek için iki cihaz gerekir: birinde Kişi ekle > Kodumu paylaş, diğerinde Kişi ekle > Kod gir.
+Giriş gerekmez. Açılışta bir ad yazmak yeterli. Soru sormak Çok İyiyim (uygulama içi satın alma) ister; cevap vermek ve "Yardım iste" ücretsizdir. Soru-cevap özelliğini denemek için iki cihaz gerekir: birinde Kişi ekle > Kodumu paylaş, diğerinde Kişi ekle > Kod gir.
 ```
 
 **İçerik derecelendirmesi (IARC anketi):**
@@ -151,7 +151,7 @@ Giriş gerekmez. Açılışta bir ad yazmak yeterli. Soru sormak İyiyim Tam (uy
 - Şiddet, cinsellik, kumar, uyuşturucu, küfür: Hayır
 - Kullanıcılar birbiriyle etkileşime giriyor mu: **Evet.** Yalnızca eşleştikleri kişilerle hazır cevaplar (“İyiyim / Sonra ararım / Yardım lazım”) paylaşılıyor. Serbest metin ya da medya yok.
 - Konum paylaşımı: **Evet**, yalnızca kullanıcı “Yardım lazım” dediğinde ve sadece eşleştiği kişiyle
-- Dijital satın alma: **Evet** (İyiyim Tam, hediye ve isteğe bağlı “Geliştiriciyi destekle”)
+- Dijital satın alma: **Evet** (Çok İyiyim, hediye ve isteğe bağlı “Geliştiriciyi destekle”)
 
 **Hedef kitle:** 18 ve üzeri (en sade politika yolu). İstersen 13+ seçebilirsin. 13 yaş altını seçme, aile politikaları devreye girer.
 
@@ -179,7 +179,7 @@ Toplanan veri türleri, hepsi için: *Toplanıyor · Paylaşılmıyor · Geçici
 | Uygulama etkinliği | **Diğer kullanıcı işlemleri** | Kimlerle eşleşildiği, kime ne zaman soru sorulduğu |
 | Cihaz veya diğer kimlikler | **Cihaz veya diğer kimlikler** | Firebase bildirim jetonu, rastgele hesap kimliği |
 | Konum | **Yaklaşık konum** ve **Hassas konum** | Yalnızca “Yardım lazım” anında tek seferlik; soruyu soran kişiye iletilir. İsteğe bağlı (izin verilmezse yardım isteği konumsuz gider) |
-| Finansal bilgiler | **Satın alma geçmişi** | Ödeme Google Play'de yapılır. Sunucu yalnızca satın alma jetonunu, sipariş numarasını ve ödendi/iade durumunu saklar (İyiyim Tam'ı doğrulamak için) |
+| Finansal bilgiler | **Satın alma geçmişi** | Ödeme Google Play'de yapılır. Sunucu yalnızca satın alma jetonunu, sipariş numarasını ve ödendi/iade durumunu saklar (Çok İyiyim'i doğrulamak için) |
 
 **Toplanmayanlar:** Arka plan konumu, kişiler/rehber, telefon numarası, e-posta, fotoğraf, ses, finans, sağlık, tarama geçmişi.
 Kişilere kaydedilen telefon numaraları **cihazdan çıkmaz**, bu yüzden “toplanan” sayılmaz.
@@ -194,7 +194,7 @@ Kişilere kaydedilen telefon numaraları **cihazdan çıkmaz**, bu yüzden “to
 | SYSTEM_ALERT_WINDOW | Gelen soruyu o an açık olan uygulamanın üstünde göstermek (kullanıcı ayarlardan açar) |
 | USE_FULL_SCREEN_INTENT | Telefon kilitliyken soru/alarm ekranını açmak. **Play Console'da beyan ister:** Uygulama içeriği → Tam ekran amaçlı bildirim → "Alarm" ya da "diğer" seçip şu açıklamayı yaz: *Yakınının "İyi misin?" sorusu ve cevap gelmediğinde çalan güvenlik alarmı, kilit ekranında tam ekran gösterilir.* Google onaylamazsa izin varsayılan kapalı gelir; kullanıcı Ayarlar'daki "Kilit ekranında açılsın" satırından açabilir. |
 | ACCESS_FINE / COARSE_LOCATION | Yalnızca "Yardım lazım" anında, ekran açıkken tek seferlik konum. **Arka plan konumu (ACCESS_BACKGROUND_LOCATION) yok**, ek beyan gerekmez. |
-| BILLING | Google Play üzerinden İyiyim Tam, hediye ve destek ödemesi |
+| BILLING | Google Play üzerinden Çok İyiyim, hediye ve destek ödemesi |
 
 `USE_EXACT_ALARM`, ön plan hizmeti, arka plan konumu ve SMS/arama izni **kullanılmıyor**.
 

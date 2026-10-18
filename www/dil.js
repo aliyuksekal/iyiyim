@@ -2159,5 +2159,33 @@ window.IYIYIM_DIL = {
 "Önce bir cevap seç": "पहले कोई जवाब चुनें",
 "İyiyim": "मैं ठीक हूँ",
 "İndirimli hediye için önce bir hediye vermiş olmalısın": "छूट वाली कीमत पहला तोहफ़ा देने के बाद लागू होती है"
+},
+"tr": {
+"“{0} iyi mi?” diye sormak ve cevap gelmezse alarm kurmak İyiyim Tam ile açılır.": "“{0} iyi mi?” diye sormak ve cevap gelmezse alarm kurmak Çok İyiyim ile açılır.",
+"“{0} iyi mi?” diye sormak İyiyim Tam ile açılır.": "“{0} iyi mi?” diye sormak Çok İyiyim ile açılır.",
+"İyiyim Tam": "Çok İyiyim",
+"{0} şu an sana sadece cevap verebiliyor. Tam hediye edersen o da sana sorabilir, cevap gelmezse alarmı çalar.": "{0} şu an sana sadece cevap verebiliyor. Çok İyiyim hediye edersen o da sana sorabilir, cevap gelmezse alarmı çalar.",
+"{0} için Tam hediye et · {1}": "{0} için Çok İyiyim hediye et · {1}",
+"Kimse sormadan tüm yakınlarına tek dokunuşla “İyiyim” demek İyiyim Tam ile açılır.": "Kimse sormadan tüm yakınlarına tek dokunuşla “İyiyim” demek Çok İyiyim ile açılır.",
+"Herkese “İyiyim” demek İyiyim Tam ile açılır.": "Herkese “İyiyim” demek Çok İyiyim ile açılır.",
+"★ İyiyim Tam açıldı!": "★ Çok İyiyim açıldı!",
+"Bu Google hesabında İyiyim Tam satın alımı bulunamadı": "Bu Google hesabında Çok İyiyim satın alımı bulunamadı",
+"İyiyim Tam hediye et": "Çok İyiyim hediye et",
+"Zaten İyiyim Tam kullanıyor": "Zaten Çok İyiyim kullanıyor",
+"Hediyen ulaştı 🎁 {0} artık İyiyim Tam kullanıyor": "Hediyen ulaştı 🎁 {0} artık Çok İyiyim kullanıyor",
+"{0} artık İyiyim Tam kullanıyor. Ona bildirim gitti; o da sana “İyi mi?” diye sorabilir.": "{0} artık Çok İyiyim kullanıyor. Ona bildirim gitti; o da sana “İyi mi?” diye sorabilir.",
+"{0} bu arada zaten Tam olmuş. Hediyen boşa gitmesin diye kod olarak hazırlandı; başka bir yakınına gönderebilirsin.": "{0} bu arada zaten Çok İyiyim olmuş. Hediyen boşa gitmesin diye kod olarak hazırlandı; başka bir yakınına gönderebilirsin.",
+"Sana İyiyim Tam hediye ettim 🎁 Play Store'dan İyiyim'i indir: {0} Sonra Ayarlar > “Hediye kodum var” kısmına bu kodu yaz: {1}": "Sana Çok İyiyim hediye ettim 🎁 Play Store'dan İyiyim'i indir: {0} Sonra Ayarlar > “Hediye kodum var” kısmına bu kodu yaz: {1}",
+"İyiyim Tam hediye": "Çok İyiyim hediye",
+"{0} sana İyiyim Tam hediye etti 🎁": "{0} sana Çok İyiyim hediye etti 🎁",
+"İyiyim Tam açıldı 🎁": "Çok İyiyim açıldı 🎁",
+"Ana ekrandaki “İyiyim” düğmesi İyiyim Tam ile çalışır.": "Ana ekrandaki “İyiyim” düğmesi Çok İyiyim ile çalışır.",
+"“İyi mi?” diye sormak için İyiyim Tam gerekli": "“İyi mi?” diye sormak için Çok İyiyim gerekli",
+"Herkese “İyiyim” demek için İyiyim Tam gerekli": "Herkese “İyiyim” demek için Çok İyiyim gerekli",
+"Bu satın alma İyiyim Tam değil": "Bu satın alma Çok İyiyim değil",
+"Sen zaten İyiyim Tam kullanıyorsun. Bu kodu Tam'ı olmayan bir yakınına ver.": "Sen zaten Çok İyiyim kullanıyorsun. Bu kodu Çok İyiyim'i olmayan bir yakınına ver.",
+"İyiyim Tam açık ★ Desteğin için teşekkürler": "Çok İyiyim açık ★ Desteğin için teşekkürler",
+"★ İyiyim Tam açıldı. Teşekkürler!": "★ Çok İyiyim açıldı. Teşekkürler!",
+"İyiyim Tam geri yüklendi ★": "Çok İyiyim geri yüklendi ★"
 }
 };
