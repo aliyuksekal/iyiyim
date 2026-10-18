@@ -92,7 +92,8 @@ final class Destek {
                 l.add(QueryProductDetailsParams.Product.newBuilder()
                         .setProductId(k).setProductType(BillingClient.ProductType.INAPP).build());
             }
-            istemci(c).queryProductDetailsAsync(QueryProductDetailsParams.newBuilder().setProductList(l).build(), (r, liste) -> {
+            istemci(c).queryProductDetailsAsync(QueryProductDetailsParams.newBuilder().setProductList(l).build(), (r, sonucListe) -> {
+                List<ProductDetails> liste = sonucListe != null ? sonucListe.getProductDetailsList() : null;
                 if (r.getResponseCode() != BillingClient.BillingResponseCode.OK || liste == null || liste.isEmpty()) {
                     hata.oldu(Ortak.s(c, R.string.b_urun_yok));
                     return;

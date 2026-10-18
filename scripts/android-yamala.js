@@ -127,7 +127,7 @@ dependencies {
     implementation 'com.google.firebase:firebase-messaging'
     implementation 'androidx.work:work-runtime:2.9.1'
     implementation 'com.google.android.gms:play-services-location:21.3.0'
-    implementation 'com.android.billingclient:billing:7.1.1'
+    implementation 'com.android.billingclient:billing:8.0.0'
 }
 `;
 }
@@ -156,4 +156,17 @@ if (fs.existsSync(GS)) {
   console.log("✓ google-services.json eklendi");
 } else {
   console.log("⚠ google-services.json yok: uygulama açılır ama bildirimler çalışmaz");
+}
+
+// 5) Play şartı: hedef API 36
+const DEG = path.join(KOK, "android", "variables.gradle");
+if (fs.existsSync(DEG)) {
+  let v = fs.readFileSync(DEG, "utf8");
+  v = v.replace(/compileSdkVersion\s*=\s*\d+/, "compileSdkVersion = 36").replace(/targetSdkVersion\s*=\s*\d+/, "targetSdkVersion = 36");
+  fs.writeFileSync(DEG, v);
+  console.log("✓ compile/target SDK 36");
+}
+const GP = path.join(KOK, "android", "gradle.properties");
+if (fs.existsSync(GP) && !fs.readFileSync(GP, "utf8").includes("suppressUnsupportedCompileSdk")) {
+  fs.appendFileSync(GP, "\nandroid.suppressUnsupportedCompileSdk=36\n");
 }
