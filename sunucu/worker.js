@@ -5,11 +5,12 @@
 //                        (aynı hesap Play Console'a davet edilir; ödemeler onunla Google'a doğrulatılır)
 // Tablolar ilk istekte kendiliğinden kurulur.
 
-const SUNUCU_SURUM = "1.7";
+const SUNUCU_SURUM = "1.8";
 const GECMIS_MS = 24 * 60 * 60 * 1000;   // bildirim geçmişi 24 saat
 const PAKET = "com.matali.iyiyim";
 const URUN_TAM = "iyiyim_tam";
-const URUN_HEDIYE = "iyiyim_hediye";
+const URUN_HEDIYE = "iyiyim_hediye";       // ilk hediye: 79,99
+const URUN_HEDIYE_IND = "iyiyim_hediye_49"; // 2. ve sonraki hediyeler: 49,99
 const TASIMA_ARASI_MS = 3 * 24 * 60 * 60 * 1000; // bir satın alma 3 günde bir başka hesaba taşınabilir
 const SORU_ARASI_MS = 0;                   // "İyi misin?" için bekleme süresi yok
 const DAVET_SURESI_MS = 24 * 60 * 60 * 1000; // davet kodu 24 saat geçerli
@@ -255,7 +256,8 @@ async function kisiler(env, ben) {
       sonDurum: k.durum ? { cevap: k.durum, zaman: k.durum_zamani, konum: konumOku(k.durum_konum) } : null,
     });
   }
-  return json({ ben: { id: ben.id, ad: ben.ad, tam: !!ben.tam }, kisiler: sonuc, simdi: Date.now(), soruArasi: SORU_ARASI_MS });
+  const hs = await env.DB.prepare("SELECT COUNT(*) AS n FROM hediyeler WHERE veren = ? AND IFNULL(iptal,0) = 0").bind(ben.id).first();
+  return json({ ben: { id: ben.id, ad: ben.ad, tam: !!ben.tam, hediyeSayisi: hs ? hs.n : 0 }, kisiler: sonuc, simdi: Date.now(), soruArasi: SORU_ARASI_MS });
 }
 
 /**
@@ -472,7 +474,13 @@ async function hediyeVer(env, ctx, ben, g) {
     o = await env.DB.prepare("SELECT id, ad, token, tam FROM kullanicilar WHERE id = ?").bind(kime).first();
     if (!o) return hata("Kişi bulunamadı", 404);
   }
-  const d = await playDogrula(env, URUN_HEDIYE, token);
+  // Kademeli fiyat: ilk hediye 79,99; daha önce (iade edilmemiş) hediye verdiyse 49,99
+  const urun = g.urun === URUN_HEDIYE_IND ? URUN_HEDIYE_IND : URUN_HEDIYE;
+  if (urun === URUN_HEDIYE_IND) {
+    const hs = await env.DB.prepare("SELECT COUNT(*) AS n FROM hediyeler WHERE veren = ? AND IFNULL(iptal,0) = 0").bind(ben.id).first();
+    if (!hs || hs.n < 1) return hata("İndirimli hediye için önce bir hediye vermiş olmalısın", 402);
+  }
+  const d = await playDogrula(env, urun, token);
   if (!d.ok) return dogrulamaHatasi(d);
   const sahip = d.satin.obfuscatedExternalAccountId;
   if (sahip && sahip !== ben.id) return hata("Bu satın alma başka bir hesaba ait", 409);
@@ -482,7 +490,7 @@ async function hediyeVer(env, ctx, ben, g) {
   const kod = await yeniKod(env);
   await env.DB.batch([
     env.DB.prepare("INSERT INTO hediyeler (kod, veren, token, kullanan, olusma) VALUES (?, ?, ?, ?, ?)").bind(kod, ben.id, token, kisiye ? o.id : null, simdi),
-    env.DB.prepare(`INSERT OR IGNORE INTO satinalmalar (token, urun, kullanici, olusma, siparis) VALUES (?, '${URUN_HEDIYE}', ?, ?, ?)`).bind(token, ben.id, simdi, d.satin.orderId || null),
+    env.DB.prepare(`INSERT OR IGNORE INTO satinalmalar (token, urun, kullanici, olusma, siparis) VALUES (?, ?, ?, ?, ?)`).bind(token, urun, ben.id, simdi, d.satin.orderId || null),
   ]);
   if (kisiye) {
     await tamHesapla(env, o.id);

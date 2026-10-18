@@ -14,10 +14,11 @@ Bu klasördeki her şey Play Console'a yüklenmeye hazır. Aşağıdaki cevaplar
 | Ürün kimliği (birebir) | Ad | Açıklama | Fiyat |
 |---|---|---|---|
 | `iyiyim_tam` | İyiyim Tam | Sınırsız "İyi mi?", cevap gelmezse alarm, herkese "İyiyim". Tek seferlik. | **99,99 TRY** |
-| `iyiyim_hediye` | İyiyim Tam (hediye) | Bir yakınına İyiyim Tam hediye et. | **99,99 TRY** |
+| `iyiyim_hediye` | İyiyim Tam (hediye) | Bir yakınına İyiyim Tam hediye et. | **79,99 TRY** |
+| `iyiyim_hediye_49` | İyiyim Tam (ek hediye) | İkinci ve sonraki hediyeler için indirimli fiyat. | **49,99 TRY** |
 | `destek_149` | Geliştiriciyi destekle | İyiyim'in gelişmesine ve sunucuların açık kalmasına katkı | **149,99 TRY** |
 
-Üçünü de **Etkin** yap. Uygulama `iyiyim_tam`'ı kalıcı ürün olarak onaylar. `iyiyim_hediye` ve `destek_149` tüketilir, yani tekrar tekrar alınabilir.
+Dördünü de **Etkin** yap. Uygulama `iyiyim_tam`'ı kalıcı ürün olarak onaylar. Hediye ürünleri ve `destek_149` tüketilir, yani tekrar tekrar alınabilir.
 
 ### Ödeme doğrulama (zorunlu, 2 dakika)
 Sunucu her satın almayı Google'a sorar; sahte ödeme ve iadeler bu sayede engellenir. Bunun için Firebase hizmet hesabının Play Console'a erişimi olmalı:

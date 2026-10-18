@@ -534,7 +534,7 @@
     } else {
       kt.textContent = t("{0} şu an sana sadece cevap verebiliyor. Tam hediye edersen o da sana sorabilir, cevap gelmezse alarmı çalar.", k.ad);
       kh.hidden = false;
-      $("#kisi-hediye-yazi").textContent = t("{0} için Tam hediye et · {1}", k.ad, fiyat(URUN_HEDIYE));
+      $("#kisi-hediye-yazi").textContent = t("{0} için Tam hediye et · {1}", k.ad, fiyat(hediyeUrunu()));
     }
     sayfaAc("#sayfa-kisi");
   }
@@ -809,16 +809,18 @@
   });
 
   // ---------- İyiyim Tam ve hediye ----------
-  const URUN_TAM = "iyiyim_tam", URUN_HEDIYE = "iyiyim_hediye", URUN_DESTEK = "destek_149";
+  const URUN_TAM = "iyiyim_tam", URUN_HEDIYE = "iyiyim_hediye", URUN_HEDIYE_IND = "iyiyim_hediye_49", URUN_DESTEK = "destek_149";
+  // Kademeli hediye: ilk hediye 79,99; sonrakiler 49,99
+  const hediyeUrunu = () => ((veri && veri.ben && veri.ben.hediyeSayisi) > 0 ? URUN_HEDIYE_IND : URUN_HEDIYE);
   const PLAY_LINK = "https://play.google.com/store/apps/details?id=com.matali.iyiyim";
   let fiyatlar = oku("fiyatlar", {});
   let bekleyenHediyeler = oku("bekleyenHediye", {}); // satın alma jetonu -> kime ("" = kod olarak)
   // Sunucudan bilgi gelmeden kimseyi kilitleme; sunucu zaten her istekte kontrol eder
   function tamYok() { return !!(veri && veri.ben && veri.ben.tam === false); }
-  const fiyat = (u) => fiyatlar[u] || (u === URUN_DESTEK ? "149,99 ₺" : "99,99 ₺");
+  const fiyat = (u) => fiyatlar[u] || ({ [URUN_DESTEK]: "149,99 ₺", [URUN_HEDIYE]: "79,99 ₺", [URUN_HEDIYE_IND]: "49,99 ₺" }[u] || "99,99 ₺");
 
   async function fiyatlariAl() {
-    const r = await Iyiyim.urunFiyatlari({ urunler: [URUN_TAM, URUN_HEDIYE, URUN_DESTEK] }).catch(() => ({}));
+    const r = await Iyiyim.urunFiyatlari({ urunler: [URUN_TAM, URUN_HEDIYE, URUN_HEDIYE_IND, URUN_DESTEK] }).catch(() => ({}));
     if (r && r.fiyatlar && Object.keys(r.fiyatlar).length) {
       fiyatlar = Object.assign({}, fiyatlar, r.fiyatlar);
       yaz("fiyatlar", fiyatlar);
@@ -827,7 +829,7 @@
   }
   function fiyatlariYaz() {
     $("#tam-al").textContent = t("{0} · Satın al", fiyat(URUN_TAM));
-    $("#hediye-al").textContent = t("{0} ile hediye et", fiyat(URUN_HEDIYE));
+    $("#hediye-al").textContent = t("{0} ile hediye et", fiyat(hediyeUrunu()));
     const d = $("#destek-ol");
     if (!d.hidden) d.textContent = t("{0} ile destekle", fiyat(URUN_DESTEK));
   }
@@ -920,7 +922,8 @@
       }
       for (const t of o[URUN_HEDIYE + "_liste"] || []) {
         bulundu = true;
-        await hediyeSunucuya(t, bekleyenHediyeler[t] || "", false);
+        const b = bekleyenHediyeler[t];
+        await hediyeSunucuya(t, (b && b.kime !== undefined ? b.kime : b) || "", false, (o.hediye_urun || {})[t] || URUN_HEDIYE);
       }
       if (elle && !bulundu) tost(yerel ? t("Bu Google hesabında İyiyim Tam satın alımı bulunamadı") : t("Geri yükleme Play Store sürümünde çalışır"), 4500);
     })().finally(() => { esitleniyor = null; });
@@ -967,19 +970,21 @@
     b.disabled = true;
     try {
       await odemeleriEsitle(false); // yarım kalmış bir hediye varsa önce onu tamamla
-      const r = await Iyiyim.satinAl({ urun: URUN_HEDIYE, hesap: kimlik ? kimlik.id : "" });
+      const urun = hediyeUrunu();
+      const r = await Iyiyim.satinAl({ urun, hesap: kimlik ? kimlik.id : "" });
       if (r.durum === "tamam" && r.token) {
-        bekleyenHediyeler[r.token] = hediyeKime;
+        bekleyenHediyeler[r.token] = { kime: hediyeKime, urun };
         yaz("bekleyenHediye", bekleyenHediyeler);
-        await hediyeSunucuya(r.token, hediyeKime, true);
+        await hediyeSunucuya(r.token, hediyeKime, true, urun);
       } else odemeHatasi(r);
     } catch (e) { tost(t("Ödeme başlatılamadı")); }
     finally { b.disabled = false; }
   });
 
-  async function hediyeSunucuya(token, kime, sesli) {
+  async function hediyeSunucuya(token, kime, sesli, urun) {
     try {
-      const v = await istek("/hediye", kime ? { token, kime } : { token });
+      const v = await istek("/hediye", kime ? { token, kime, urun } : { token, urun });
+      if (veri && veri.ben && !v.tekrar) veri.ben.hediyeSayisi = (veri.ben.hediyeSayisi || 0) + 1;
       delete bekleyenHediyeler[token];
       yaz("bekleyenHediye", bekleyenHediyeler);
       Iyiyim.tuket({ token }).catch(() => {});
@@ -989,7 +994,7 @@
       return true;
     } catch (e) {
       // Kişi bu arada listeden çıktıysa hediye boşa gitmesin: kod olarak al
-      if (kime && e.durum === 404) return hediyeSunucuya(token, "", sesli);
+      if (kime && e.durum === 404) return hediyeSunucuya(token, "", sesli, urun);
       if (sesli) {
         if (e.ag) tost(t("İnternet yok. Ödemen güvende; bağlanınca hediye kendiliğinden gönderilecek."), 5000);
         else if (e.veri && e.veri.tekrar) tost(t("Ödemen alındı, Google onaylıyor. Onaylanınca hediye kendiliğinden gönderilecek."), 6000);

@@ -357,7 +357,8 @@ window.IYIYIM_DIL = {
 "Ayar açılamadı": "Couldn't open the setting",
 "Önce adını yaz": "Enter your name first",
 "Önce bir cevap seç": "Choose a reply first",
-"İyiyim": "I'm OK"
+"İyiyim": "I'm OK",
+"İndirimli hediye için önce bir hediye vermiş olmalısın": "The discounted gift price applies after your first gift"
 },
 "ru": {
 "Sunucu adresi ayarlanmamış": "Адрес сервера не задан",
@@ -716,7 +717,8 @@ window.IYIYIM_DIL = {
 "Ayar açılamadı": "Не удалось открыть настройку",
 "Önce adını yaz": "Сначала введите имя",
 "Önce bir cevap seç": "Сначала выберите ответ",
-"İyiyim": "Я в порядке"
+"İyiyim": "Я в порядке",
+"İndirimli hediye için önce bir hediye vermiş olmalısın": "Скидка на подарок действует после первого подарка"
 },
 "uz": {
 "Sunucu adresi ayarlanmamış": "Server manzili sozlanmagan",
@@ -1075,7 +1077,8 @@ window.IYIYIM_DIL = {
 "Ayar açılamadı": "Sozlamani ochib boʻlmadi",
 "Önce adını yaz": "Avval ismingizni yozing",
 "Önce bir cevap seç": "Avval javobni tanlang",
-"İyiyim": "Yaxshiman"
+"İyiyim": "Yaxshiman",
+"İndirimli hediye için önce bir hediye vermiş olmalısın": "Chegirmali sovgʻa birinchi sovgʻadan keyin amal qiladi"
 },
 "zh": {
 "Sunucu adresi ayarlanmamış": "未设置服务器地址",
@@ -1434,7 +1437,8 @@ window.IYIYIM_DIL = {
 "Ayar açılamadı": "无法打开设置",
 "Önce adını yaz": "请先输入名字",
 "Önce bir cevap seç": "请先选择一个回复",
-"İyiyim": "我很好"
+"İyiyim": "我很好",
+"İndirimli hediye için önce bir hediye vermiş olmalısın": "首次赠送后才可享受礼物优惠价"
 },
 "ko": {
 "Sunucu adresi ayarlanmamış": "서버 주소가 설정되지 않았어요",
@@ -1793,7 +1797,8 @@ window.IYIYIM_DIL = {
 "Ayar açılamadı": "설정을 열 수 없어요",
 "Önce adını yaz": "먼저 이름을 입력하세요",
 "Önce bir cevap seç": "먼저 답을 선택하세요",
-"İyiyim": "괜찮아요"
+"İyiyim": "괜찮아요",
+"İndirimli hediye için önce bir hediye vermiş olmalısın": "할인된 선물 가격은 첫 선물 이후에 적용돼요"
 },
 "hi": {
 "Sunucu adresi ayarlanmamış": "सर्वर का पता सेट नहीं है",
@@ -2152,6 +2157,7 @@ window.IYIYIM_DIL = {
 "Ayar açılamadı": "सेटिंग नहीं खुल सकी",
 "Önce adını yaz": "पहले अपना नाम लिखें",
 "Önce bir cevap seç": "पहले कोई जवाब चुनें",
-"İyiyim": "मैं ठीक हूँ"
+"İyiyim": "मैं ठीक हूँ",
+"İndirimli hediye için önce bir hediye vermiş olmalısın": "छूट वाली कीमत पहला तोहफ़ा देने के बाद लागू होती है"
 }
 };

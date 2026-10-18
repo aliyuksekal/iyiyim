@@ -320,6 +320,7 @@ public class IyiyimPlugin extends Plugin {
         if (l.isEmpty()) {
             l.add(Destek.TAM);
             l.add(Destek.HEDIYE);
+            l.add(Destek.HEDIYE_IND);
             l.add(Destek.URUN);
         }
         return l;

@@ -31,6 +31,7 @@ final class Destek {
     static final String URUN = "destek_149";
     static final String TAM = "iyiyim_tam";
     static final String HEDIYE = "iyiyim_hediye";
+    static final String HEDIYE_IND = "iyiyim_hediye_49";
 
     interface Sonuc {
         /** durum: "tamam" | "iptal" | "bekliyor" | "hata"; token: satın alma jetonu; mesaj: açıklama */
@@ -200,6 +201,7 @@ final class Destek {
                 .setProductType(BillingClient.ProductType.INAPP).build(), (r, liste) -> {
             JSONObject o = new JSONObject();
             JSONArray hediyeler = new JSONArray();
+            JSONObject hediyeUrun = new JSONObject();
             try {
                 if (liste != null) {
                     for (Purchase p : liste) {
@@ -207,14 +209,16 @@ final class Destek {
                         if (p.getProducts().contains(TAM)) {
                             onayla(p);
                             o.put(TAM, p.getPurchaseToken());
-                        } else if (p.getProducts().contains(HEDIYE)) {
+                        } else if (p.getProducts().contains(HEDIYE) || p.getProducts().contains(HEDIYE_IND)) {
                             hediyeler.put(p.getPurchaseToken());
+                            hediyeUrun.put(p.getPurchaseToken(), p.getProducts().contains(HEDIYE_IND) ? HEDIYE_IND : HEDIYE);
                         } else if (p.getProducts().contains(URUN)) {
                             tuket(p.getPurchaseToken());
                         }
                     }
                 }
                 o.put(HEDIYE + "_liste", hediyeler);
+                o.put("hediye_urun", hediyeUrun);
             } catch (Exception ignored) {}
             sonuc.geldi(o);
         }), m -> sonuc.geldi(new JSONObject()));
