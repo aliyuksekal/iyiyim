@@ -166,6 +166,7 @@ public class IyiyimPlugin extends Plugin {
         r.put("konum", Konum.izinVar(c));
         r.put("ton", Ortak.ton(c));
         r.put("sdk", Build.VERSION.SDK_INT);
+        r.put("widget", widgetSayisi(c) > 0);
         call.resolve(r);
     }
 
@@ -428,6 +429,66 @@ public class IyiyimPlugin extends Plugin {
             IyiyimWidget.olaylariYaz(getContext(), l == null ? new org.json.JSONArray() : l);
         } catch (Exception ignored) {}
         call.resolve();
+    }
+
+    /** Ana ekranda kaç İyiyim widget'ı olduğunu döner. */
+    static int widgetSayisi(Context c) {
+        try {
+            android.appwidget.AppWidgetManager m = android.appwidget.AppWidgetManager.getInstance(c);
+            int[] ids = m.getAppWidgetIds(new android.content.ComponentName(c, IyiyimWidget.class));
+            return ids == null ? 0 : ids.length;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    /** Play Store'da uygulamanın sayfasını açar (değerlendirme için). */
+    @PluginMethod
+    public void magazaAc(PluginCall call) {
+        magazaSayfasi(getContext());
+        call.resolve();
+    }
+
+    private static void magazaSayfasi(Context c) {
+        String paket = c.getPackageName();
+        try {
+            Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + paket));
+            i.setPackage("com.android.vending");
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            c.startActivity(i);
+        } catch (Exception e) {
+            try {
+                Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + paket));
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                c.startActivity(i);
+            } catch (Exception ignored) {}
+        }
+    }
+
+    /** Google Play uygulama içi değerlendirme penceresini açmayı dener (Google gösterip göstermemeye kendi karar verir). */
+    @PluginMethod
+    public void degerlendir(PluginCall call) {
+        JSObject r = new JSObject();
+        android.app.Activity a = getActivity();
+        if (a == null) { r.put("durum", "yok"); call.resolve(r); return; }
+        try {
+            com.google.android.play.core.review.ReviewManager rm =
+                    com.google.android.play.core.review.ReviewManagerFactory.create(getContext());
+            rm.requestReviewFlow().addOnCompleteListener(t -> {
+                if (t.isSuccessful()) {
+                    rm.launchReviewFlow(a, t.getResult()).addOnCompleteListener(x -> {
+                        r.put("durum", "tamam");
+                        call.resolve(r);
+                    });
+                } else {
+                    r.put("durum", "yok");
+                    call.resolve(r);
+                }
+            });
+        } catch (Exception e) {
+            r.put("durum", "yok");
+            call.resolve(r);
+        }
     }
 
     @PluginMethod

@@ -28,6 +28,8 @@
       tamEkranAyari: async () => ({}),
       widgetEkle: async () => ({ destek: false }),
       widgetOlaylari: async () => ({}),
+      magazaAc: async () => ({}),
+      degerlendir: async () => ({ durum: "yok" }),
       konumIzni: async () => ({ durum: "granted" }),
       konumAl: async () => ({ lat: 41.0082, lng: 28.9784, hassas: 15, zaman: Date.now() }),
       tonSec: async (o) => ({ ton: o.ton }),
@@ -343,6 +345,7 @@
       ciz();
       tost(v.ulasti ? t("Soru gönderildi: {0}", k.ad) : t("Soru kaydedildi. {0} uygulamayı açınca görecek.", k.ad), 3200);
       if ("vibrate" in navigator) navigator.vibrate(20);
+      degerlendirmeSay();
     } catch (e) {
       if (e.durum === 402 && e.veri && e.veri.tamGerekli) { tamDegisti(false); tamAc(t("“{0} iyi mi?” diye sormak İyiyim Tam ile açılır.", k.ad)); }
       else if (e.durum === 429 && e.veri && e.veri.kalan) tost(`${kalanMetin(e.veri.kalan)} sonra tekrar sorabilirsin`);
@@ -366,6 +369,7 @@
       tost(cevap === "iyi" ? t("“İyiyim” gönderildi") : cevap === "sonra" ? t("“Sonra ararım” gönderildi") : konum ? t("Yardım isteğin ve konumun gönderildi") : t("Yardım isteğin gönderildi"));
       $("#soru-ekran").hidden = true;
       yenile();
+      if (cevap === "iyi") degerlendirmeSay();
     } catch (e) {
       if (e.ag && yerel) {
         await Iyiyim.cevapSirala({ soruId, cevap, ad: gelen ? gelen.ad : "", konum: konum || undefined }).catch(() => {});
@@ -484,7 +488,7 @@
   }
   $$(".sekme-dugme").forEach((b) => b.addEventListener("click", () => sekmeSec(b.dataset.sekme)));
 
-  const davetMetni = () => t("İyiyim'de birbirimizi ekleyelim. Uygulamayı açıp “Kişi ekle > Kod gir” kısmına bu kodu yaz: {0}", davet.kod);
+  const davetMetni = () => t("İyiyim'de birbirimizi ekleyelim. Uygulama yoksa buradan indir: {1} Sonra “Kişi ekle > Kod gir” kısmına bu kodu yaz: {0}", davet.kod, PLAY_LINK);
   $("#kod-paylas").addEventListener("click", async () => {
     if (!davet) return;
     try {
@@ -1200,7 +1204,16 @@
       du.className = d.ustte ? "tamam" : "eksik";
       $("#ayar-alarm-satir").hidden = d.sdk < 31;
       $("#izin-alarm-satir").hidden = d.sdk < 31;
+      widgetDurumu(!!d.widget);
     } catch (e) {}
+  }
+  function widgetDurumu(ekli) {
+    const dw = $("#durum-widget");
+    if (dw) { dw.textContent = ekli ? t("Eklendi ✓") : t("Ekle"); dw.className = ekli ? "tamam" : ""; }
+    $$('[data-izin="widget"].dugme').forEach((b) => {
+      b.textContent = ekli ? t("Eklendi ✓") : t(b.id === "tanitim-widget" ? "Ana ekrana ekle" : "Ekle");
+      b.classList.toggle("tamam", ekli);
+    });
   }
   $("#ayarlar-ac").addEventListener("click", () => { ayarlariDoldur(); sayfaAc("#sayfa-ayar"); });
   $("#ayar-kaydet").addEventListener("click", async () => {
@@ -1258,6 +1271,7 @@
       } else if (tur === "widget") {
         const r = await Iyiyim.widgetEkle();
         if (!r.destek) tost(t("Ana ekranda boş bir yere basılı tut → Widget'lar → İyiyim'i sürükle"), 6000);
+        else [2500, 6000, 12000].forEach((ms) => setTimeout(izinleriGoster, ms));
       } else if (tur === "tamekran") {
         await Iyiyim.tamEkranAyari();
       } else if (tur === "konum") {
@@ -1294,6 +1308,90 @@
   });
   $$("#soru-ekran [data-cevap]").forEach((b) => b.addEventListener("click", () => cevapla($("#soru-ekran").dataset.soru, b.dataset.cevap)));
 
+
+  // ---------- tanıtım: ilk açılışta kısa, atlanabilir rehber ----------
+  const tanitimSayfalari = $$(".tanitim-sayfa");
+  let tanitimAdim = 0;
+  function tanitimGit(i) {
+    tanitimAdim = Math.max(0, Math.min(tanitimSayfalari.length - 1, i));
+    tanitimSayfalari.forEach((s, j) => {
+      if (j === tanitimAdim) s.removeAttribute("data-yer");
+      else s.dataset.yer = j < tanitimAdim ? "sol" : "sag";
+      s.setAttribute("aria-hidden", j === tanitimAdim ? "false" : "true");
+    });
+    $("#tanitim-noktalar").innerHTML = tanitimSayfalari.map((_, j) => `<i class="${j === tanitimAdim ? "secili" : ""}"></i>`).join("");
+    $("#tanitim-sayac").textContent = `${tanitimAdim + 1} / ${tanitimSayfalari.length}`;
+    const son = tanitimAdim === tanitimSayfalari.length - 1;
+    $("#tanitim-ileri").textContent = son ? t("Başla") : t("İleri");
+    $("#tanitim-atla").hidden = son;
+  }
+  function tanitimAc() {
+    sayfaKapat();
+    $("#tanitim").hidden = false;
+    tanitimGit(0);
+    izinleriGoster();
+  }
+  function tanitimKapat() {
+    $("#tanitim").hidden = true;
+    yaz("tanitim", true);
+  }
+  $("#tanitim-ileri").addEventListener("click", () => {
+    if (tanitimAdim >= tanitimSayfalari.length - 1) tanitimKapat();
+    else tanitimGit(tanitimAdim + 1);
+  });
+  $("#tanitim-atla").addEventListener("click", tanitimKapat);
+  $("#tanitim-ac").addEventListener("click", tanitimAc);
+  (() => {
+    let x0 = null, y0 = null;
+    const k = $("#tanitim-kayan");
+    k.addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+    k.addEventListener("touchend", (e) => {
+      if (x0 === null) return;
+      const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+      x0 = null;
+      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+      tanitimGit(tanitimAdim + (dx < 0 ? 1 : -1));
+    });
+  })();
+
+  // ---------- paylaş, değerlendir, geri bildirim ----------
+  const uygulamaMetni = () => t("Sevdiklerinle birbirinizin iyi olduğundan tek dokunuşla emin olun. İyiyim'i indir: {0}", PLAY_LINK);
+  async function uygulamayiPaylas() {
+    try {
+      if (PaylasP) await PaylasP.share({ title: "İyiyim", text: uygulamaMetni(), url: PLAY_LINK, dialogTitle: t("Uygulamayı paylaş") });
+      else if (navigator.share) await navigator.share({ title: "İyiyim", text: uygulamaMetni() });
+      else throw 0;
+    } catch (e) {
+      if (e && /cancel/i.test(String(e.message || e))) return;
+      kopyala(uygulamaMetni());
+    }
+  }
+  $("#uygulama-paylas").addEventListener("click", uygulamayiPaylas);
+  $("#bos-paylas").addEventListener("click", uygulamayiPaylas);
+  $("#uygulama-degerlendir").addEventListener("click", () => {
+    yaz("degerlendirme", { sayi: 99, sorulan: Date.now() });
+    Iyiyim.magazaAc().catch(() => { window.open(PLAY_LINK, "_blank"); });
+  });
+  // Geri bildirim e-postası: sürüm ve telefon bilgisi hazır gelsin
+  cihazAl().then((d) => {
+    const bilgi = [t("Sürüm {0}", window.IYIYIM_SURUM || ""), [d.marka, d.model].filter(Boolean).join(" "), d.surum ? "Android " + d.surum : ""].filter(Boolean).join(" · ");
+    const konu = encodeURIComponent(t("İyiyim geri bildirim") + " (" + bilgi + ")");
+    const govde = encodeURIComponent("\n\n\n— " + bilgi);
+    $("#geri-bildirim").href = `mailto:matali.truz@gmail.com?subject=${konu}&body=${govde}`;
+  });
+  /** Birkaç başarılı kullanımdan sonra, sakin bir anda Google Play değerlendirme penceresini bir kez önerir. */
+  function degerlendirmeSay() {
+    const d = Object.assign({ sayi: 0, sorulan: 0 }, oku("degerlendirme", {}));
+    d.sayi++;
+    yaz("degerlendirme", d);
+    const ayGecti = Date.now() - d.sorulan > 60 * 24 * 3600 * 1000;
+    if (d.sayi >= 4 && ayGecti && yerel) {
+      d.sorulan = Date.now();
+      yaz("degerlendirme", d);
+      setTimeout(() => { if ($("#soru-ekran").hidden) Iyiyim.degerlendir().catch(() => {}); }, 1800);
+    }
+  }
+
   // ---------- karşılama ----------
   function goster(ekran) {
     $("#karsilama").hidden = ekran !== "karsilama";
@@ -1323,7 +1421,7 @@
     }
   });
   $("#ad-girdi").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#ad-devam").click(); });
-  $("#izin-bitti").addEventListener("click", () => { goster("ana"); ciz(); yenile(false); });
+  $("#izin-bitti").addEventListener("click", () => { goster("ana"); ciz(); yenile(false); if (!oku("tanitim", false)) tanitimAc(); });
 
   // ---------- yerel tarafla eşitleme ----------
   async function yerelAyarla() {
@@ -1347,6 +1445,7 @@
   if (UygulamaP) {
     UygulamaP.addListener("backButton", () => {
       if (!$("#soru-ekran").hidden) { tost(t("Önce bir cevap seç")); return; }
+      if (!$("#tanitim").hidden) { if (tanitimAdim > 0) tanitimGit(tanitimAdim - 1); else tanitimKapat(); return; }
       if (acikSayfa) { sayfaKapat(); return; }
       UygulamaP.minimizeApp ? UygulamaP.minimizeApp() : UygulamaP.exitApp();
     });
@@ -1371,6 +1470,7 @@
     if (!kimlik) { goster("karsilama"); return; }
     goster("ana");
     ciz();
+    if (!oku("tanitim", false)) tanitimAc();
     await yerelAyarla();
     bekleyenOlaylar();
     jetonuEsitle();

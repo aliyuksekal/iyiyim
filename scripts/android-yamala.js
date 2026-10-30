@@ -128,6 +128,7 @@ dependencies {
     implementation 'androidx.work:work-runtime:2.9.1'
     implementation 'com.google.android.gms:play-services-location:21.3.0'
     implementation 'com.android.billingclient:billing:8.0.0'
+    implementation 'com.google.android.play:review:2.0.2'
 }
 `;
 }

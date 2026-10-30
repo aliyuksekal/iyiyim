@@ -426,3 +426,40 @@ a.ayar-satir { color: inherit; text-decoration: none; }
 .kisi.sakin .kisi-durum { color: var(--soluk); font-weight: 400; }
 .kisi.sakin .konum-link { color: var(--ana); }
 .kisi.sakin .ara-yuvarlak { background: var(--yuzey-2); color: var(--yazi); }
+
+/* ---------- boş liste: uygulamayı paylaş ---------- */
+.bos .bos-paylas { margin: 18px auto 0; min-height: 46px; font-size: 15px; }
+.bos .bos-paylas svg { width: 18px; height: 18px; margin: 0; }
+
+/* ---------- tanıtım (ilk açılış) ---------- */
+.tanitim {
+  position: fixed; inset: 0; z-index: 30; background: var(--zemin);
+  display: grid; grid-template-rows: auto 1fr auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) max(20px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 20px) max(20px, env(safe-area-inset-left, 0px));
+  animation: belir .25s ease;
+}
+.tanitim-ust { display: flex; justify-content: space-between; align-items: center; max-width: 480px; width: 100%; margin: 0 auto; }
+.tanitim-sayac { color: var(--soluk); font-size: 14px; font-variant-numeric: tabular-nums; }
+.tanitim-ust .metin-dugme { font-weight: 600; color: var(--ana); }
+.tanitim-kayan { position: relative; overflow: hidden; display: grid; align-items: center; }
+.tanitim-sayfa {
+  grid-area: 1 / 1; width: 100%; max-width: 420px; margin: 0 auto; text-align: center;
+  display: grid; justify-items: center; gap: 12px;
+  transition: transform .32s cubic-bezier(.2,.8,.2,1), opacity .25s ease;
+}
+.tanitim-sayfa[data-yer="sol"] { transform: translateX(-40%); opacity: 0; pointer-events: none; }
+.tanitim-sayfa[data-yer="sag"] { transform: translateX(40%); opacity: 0; pointer-events: none; }
+.tanitim-sayfa h2 { font: 700 28px/1.2 var(--yazi-baslik); margin: 12px 0 0; letter-spacing: -.01em; }
+.tanitim-sayfa p { margin: 0; color: var(--soluk); font-size: 17px; line-height: 1.55; max-width: 32ch; }
+.tanitim-sayfa .dugme { margin-top: 10px; }
+.tanitim-sayfa .dugme.tamam { background: var(--iyi-zemin); color: var(--iyi); border-color: transparent; }
+.tanitim-resim { width: 120px; height: 120px; border-radius: 36px; display: grid; place-items: center; }
+.tanitim-resim svg { width: 60px; height: 60px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tanitim-resim.ana-renk { background: var(--ana-zemin); color: var(--ana); }
+.tanitim-resim.iyi-renk { background: var(--iyi-zemin); color: var(--iyi); }
+.tanitim-resim.bekle-renk { background: var(--bekle-zemin); color: var(--bekle); }
+.tanitim-alt { display: grid; gap: 18px; max-width: 480px; width: 100%; margin: 0 auto; }
+.tanitim-noktalar { display: flex; justify-content: center; gap: 8px; }
+.tanitim-noktalar i { width: 8px; height: 8px; border-radius: 4px; background: var(--cizgi); transition: width .25s ease, background .25s ease; }
+.tanitim-noktalar i.secili { width: 24px; background: var(--ana); }
+@media (prefers-reduced-motion: reduce) { .tanitim-sayfa { transition: none; } }
