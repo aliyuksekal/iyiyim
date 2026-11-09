@@ -68,7 +68,7 @@
   let kurulanAlarmlar = oku("alarmlar", {});          // {soruId: true}
 
   // ---------- dil ----------
-  const DILLER = ["tr", "en", "ru", "uz", "zh", "ko", "hi"];
+  const DILLER = ["tr", "en", "ru", "uz", "zh", "ko", "hi", "ar"];
   const DIL = window.IYIYIM_DIL || {};
   function varsayilanDil() {
     const l = (navigator.languages || [navigator.language || "en"]).map((x) => String(x).toLowerCase().slice(0, 2));
@@ -81,11 +81,12 @@
     const m = (d && d[k]) || k;
     return a.length ? m.replace(/\{(\d)\}/g, (x, i) => (a[i] !== undefined && a[i] !== null ? a[i] : x)) : m;
   }
-  const dilEtiketi = () => ({ tr: "tr-TR", en: "en-US", ru: "ru-RU", uz: "uz-Latn-UZ", zh: "zh-CN", ko: "ko-KR", hi: "hi-IN" }[aktifDil] || "en-US");
+  const dilEtiketi = () => ({ tr: "tr-TR", en: "en-US", ru: "ru-RU", uz: "uz-Latn-UZ", zh: "zh-CN", ko: "ko-KR", hi: "hi-IN", ar: "ar" }[aktifDil] || "en-US");
   const norm = (h) => h.replace(/\s+/g, " ").trim();
   /** HTML'deki data-t öğelerini seçili dile çevirir; özgün Türkçe metin anahtar olarak saklanır. */
   function sayfayiCevir() {
     document.documentElement.lang = aktifDil;
+    document.documentElement.dir = aktifDil === "ar" ? "rtl" : "ltr";
     document.querySelectorAll("[data-t]").forEach((e) => {
       if (e.dataset.tk === undefined) e.dataset.tk = norm(e.innerHTML);
       e.innerHTML = t(e.dataset.tk);

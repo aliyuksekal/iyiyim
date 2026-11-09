@@ -49,7 +49,7 @@ public final class Ortak {
 
     // ---------------- dil ----------------
     /** Desteklenen diller. Uygulamada seçilen dil, yoksa telefonun dili, o da yoksa İngilizce. */
-    static final String[] DILLER = {"tr", "en", "ru", "uz", "zh", "ko", "hi"};
+    static final String[] DILLER = {"tr", "en", "ru", "uz", "zh", "ko", "hi", "ar"};
     private static Context yerelBaglam;
     private static String yerelDil;
 

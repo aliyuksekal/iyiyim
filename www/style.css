@@ -416,7 +416,7 @@ a.ayar-satir { color: inherit; text-decoration: none; }
 .gecmis-bos p { margin: 0 0 6px; font-weight: 600; }
 
 /* Çince, Korece, Hintçe: sistemin kendi yazı tipleri daha okunur; büyük harf/harf aralığı yok */
-:lang(zh) body, :lang(ko) body, :lang(hi) body { --yazi-baslik: system-ui, "Noto Sans", sans-serif; --yazi-govde: system-ui, "Noto Sans", sans-serif; }
+:lang(zh) body, :lang(ko) body, :lang(hi) body, :lang(ar) body { --yazi-baslik: system-ui, "Noto Sans", sans-serif; --yazi-govde: system-ui, "Noto Sans", sans-serif; }
 :lang(hi) body { line-height: 1.6; }
 
 /* İlgilenilmiş acil durum: bilgi kalır, alarm rengi söner */
@@ -463,3 +463,10 @@ a.ayar-satir { color: inherit; text-decoration: none; }
 .tanitim-noktalar i { width: 8px; height: 8px; border-radius: 4px; background: var(--cizgi); transition: width .25s ease, background .25s ease; }
 .tanitim-noktalar i.secili { width: 24px; background: var(--ana); }
 @media (prefers-reduced-motion: reduce) { .tanitim-sayfa { transition: none; } }
+
+/* Arapça: sağdan sola */
+[dir="rtl"] .tam-liste li { padding-left: 0; padding-right: 32px; }
+[dir="rtl"] .tam-liste li::before { left: auto; right: 0; }
+[dir="rtl"] .tam-liste li::after { left: auto; right: 4px; }
+[dir="rtl"] .gecmis-ol li:not(:last-child)::before { left: auto; right: 17px; }
+:lang(ar) body { line-height: 1.6; }
